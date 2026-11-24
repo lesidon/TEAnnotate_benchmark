@@ -1,0 +1,868 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/nf-core/teannotate/main/nextflow_schema.json",
+    "title": "nf-core/teannotate pipeline parameters",
+    "description": "End-to-end transposable element and tandem repeat annotation pipeline",
+    "type": "object",
+    "$defs": {
+        "input_output_options": {
+            "title": "Input/output options",
+            "type": "object",
+            "fa_icon": "fas fa-terminal",
+            "description": "Define where the pipeline should find input data and save output data.",
+            "required": ["input", "outdir"],
+            "properties": {
+                "input": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "schema": "assets/samplesheet_schema.json",
+                    "mimetype": "text/csv",
+                    "pattern": "^\\S+\\.csv$",
+                    "description": "Path to comma-separated samplesheet with columns: sample, genome, [organism_type].",
+                    "help_text": "Each row represents one genome assembly. The genome column must point to a FASTA file (.fa, .fasta, .fna, optionally .gz).",
+                    "fa_icon": "fas fa-file-csv"
+                },
+                "outdir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Path to the output directory where results will be saved.",
+                    "default": "./results",
+                    "fa_icon": "fas fa-folder-open"
+                }
+            }
+        },
+        "organism_routing_options": {
+            "title": "Organism routing options",
+            "type": "object",
+            "fa_icon": "fas fa-sitemap",
+            "description": "Control organism-type routing.",
+            "properties": {
+                "organism_type": {
+                    "type": "string",
+                    "default": "animal",
+                    "enum": ["plant", "animal", "fungus"],
+                    "description": "Organism type for de novo TE discovery tool selection. Defaults to the animal route when unspecified.",
+                    "fa_icon": "fas fa-leaf"
+                }
+            }
+        },
+        "library_options": {
+            "title": "TE library options",
+            "type": "object",
+            "fa_icon": "fas fa-book",
+            "description": "Options for user-supplied TE libraries and merge/deduplication.",
+            "properties": {
+                "user_te_library": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "pattern": "^\\S+\\.(fa|fasta|fna)(\\.gz)?$",
+                    "description": "Optional path to a user-supplied TE consensus library FASTA. Merged with the de novo library before curation.",
+                    "fa_icon": "fas fa-file"
+                },
+                "skip_hite": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Skip the HiTE de novo engine. By default HiTE (full-length LTR/TIR/Helitron/non-LTR) runs alongside Earl Grey on every genome and its library is merged before dedup. Container-only (kanghu/hite:3.3.3).",
+                    "fa_icon": "fas fa-forward"
+                },
+                "skip_starfish": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Skip the Starship captain report (Starfish; tyrosine-recombinase genes predicted de novo, no gene annotation needed) that runs on fungal genomes and is written to 02_denovo_te/starfish/. A report only: it never enters the TE library, curation or masking. Element boundaries need an empty insertion site, normally in another genome, so a single genome usually yields captains but no elements. If its environment cannot be built, the report is skipped and the run continues.",
+                    "fa_icon": "fas fa-ship"
+                },
+                "starfish_env": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Prebuilt Starfish Conda environment (prefix directory containing bin/starfish and db/). Without it, the Starfish task builds the environment once (micromamba, mamba or conda on the host, from assets/environments/starfish.yml) and caches it under --conda_cachedir or <workDir>/conda. Useful on clusters whose compute nodes have no internet access.",
+                    "fa_icon": "fas fa-folder-open"
+                },
+                "pfam_db": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Path to a pre-downloaded Pfam-A directory (containing Pfam-A.hmm with its hmmpress index .h3f/.h3i/.h3m/.h3p and Pfam-A.hmm.dat). TEtrimmer requires PFAM to orient TEs. If unset, the pipeline downloads + indexes Pfam-A automatically (cached) and passes it via --pfam_dir.",
+                    "fa_icon": "fas fa-folder-open"
+                },
+                "hite_ltrdetector_dir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Prebuilt copy of HiTE's bin/FiLTR-main/bin/LtrDetector directory, used instead of fetching it (offline hosts). kanghu/hite:3.3.3 lacks its bin/ subdirectory (the LtrDetector binary), so HiTE's default LTR step (FiLTR) would find no candidates and HiTE would silently report zero LTR families. See the README recipe.",
+                    "fa_icon": "fas fa-folder-open"
+                },
+                "hite_repo_url": {
+                    "type": "string",
+                    "default": "https://github.com/CSU-KangHu/HiTE.git",
+                    "description": "HiTE repository the LtrDetector directory is fetched from.",
+                    "fa_icon": "fas fa-link"
+                },
+                "hite_revision": {
+                    "type": "string",
+                    "default": "03c2e7790ef1d3ec9e95098927a7befbfe9dce1b",
+                    "description": "HiTE commit the LtrDetector directory is fetched from: the one the kanghu/hite:3.3.3 image code matches.",
+                    "fa_icon": "fas fa-code-branch"
+                },
+                "hite_cache": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "storeDir location caching the LtrDetector directory, one subdirectory per revision. Defaults to ${launchDir}/hite_cache.",
+                    "fa_icon": "fas fa-database"
+                },
+                "tetrimmer_teaid_dir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Host directory holding a writable copy of the TEtrimmer image's /usr/local/share/tetrimmer/TE-Aid-master, bind-mounted over that path. Needed only where Singularity runs without overlay support (unprivileged, no setuid): there --writable-tmpfs is silently disabled in favour of 'underlay', the image stays read-only, and TEtrimmer aborts with 'OSError: [Errno 30] Read-only file system' while chmod-ing its bundled TE-Aid. A bind mount is writable regardless of overlay support.",
+                    "fa_icon": "fas fa-folder-open"
+                },
+                "pfam_cache": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "storeDir location caching the fetched + hmmpress-indexed Pfam-A database, one subdirectory per release / URL. Defaults to ${launchDir}/pfam_cache.",
+                    "fa_icon": "fas fa-database"
+                },
+                "pfam_hmm_url": {
+                    "type": "string",
+                    "default": "https://ftp.ebi.ac.uk/pub/databases/Pfam/releases/Pfam38.2/Pfam-A.hmm.gz",
+                    "description": "URL of Pfam-A.hmm.gz used when --pfam_db is not set. Pinned to a release; current_release/ changes over time.",
+                    "fa_icon": "fas fa-link"
+                },
+                "pfam_dat_url": {
+                    "type": "string",
+                    "default": "https://ftp.ebi.ac.uk/pub/databases/Pfam/releases/Pfam38.2/Pfam-A.hmm.dat.gz",
+                    "description": "URL of Pfam-A.hmm.dat.gz used when --pfam_db is not set.",
+                    "fa_icon": "fas fa-link"
+                },
+                "skip_tetrimmer": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Ablation: skip TEtrimmer curation and send the deduplicated de novo library straight to re-classification (its Unknown fraction still goes through the ensemble).",
+                    "fa_icon": "fas fa-forward"
+                },
+                "skip_reclassification": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Skip the Stage 3 DL classifier ensemble (TEclass2 + DeepTE + CREATE + NeuralTE + Terrier) that re-classifies the curated library's Unknown fraction. When skipped, curated Earl Grey/RepeatClassifier labels are kept. The ensemble runs by default.",
+                    "fa_icon": "fas fa-forward"
+                },
+                "ensemble_method": {
+                    "type": "string",
+                    "default": "two_step",
+                    "enum": ["two_step", "weighted", "hard", "all"],
+                    "description": "Ensemble strategy: 'two_step' (default) votes on the Order, then on a superfamily inside the winning Order, each step with its own per-kingdom model weights (tuned on leakage-filtered curated consensi); 'weighted' scales each model's single Order vote by its weight; 'hard' is plain majority rule; 'all' writes every ensemble column to the voting table and relabels the library with the two-step call. ('catboost' is an experimental branch feature.)",
+                    "fa_icon": "fas fa-people-group"
+                },
+                "ensemble_two_step_config": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "pattern": "^\\S+\\.json$",
+                    "description": "Path to a JSON file overriding the built-in two-step settings (bin/ensemble_vote.py TWO_STEP_DEFAULTS), with any subset of kingdoms (plant / animal / fungus), steps (order / superfamily) and keys (weights, min_frac, min_agree), e.g. {\"fungus\": {\"order\": {\"weights\": {\"neuralte\": 1, \"terrier\": 2}}}}. A weights map replaces the default one.",
+                    "fa_icon": "fas fa-file-code"
+                },
+                "ensemble_relabel_orders": {
+                    "type": "string",
+                    "default": "DNA,RC",
+                    "pattern": "^(all|[A-Za-z]+(,[A-Za-z]+)*)$",
+                    "description": "Orders the ensemble may assign to an Unknown consensus (comma list, e.g. 'DNA,RC'); a call of another Order leaves it Unknown. The Unknown fraction that reaches the ensemble has already been through domain-based labelling, so it is mostly consensi without a detectable coding domain: plausible for non-autonomous DNA transposons and Helitrons, whereas LTR / LINE calls on such consensi were mostly wrong on the development genomes. 'all' lifts the restriction.",
+                    "fa_icon": "fas fa-filter"
+                },
+                "ensemble_min_frac": {
+                    "type": "number",
+                    "default": 0.5,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": "Weighted / hard voting only. Abstention gate: the winning class must carry at least this fraction of the vote weight the kingdom's voting subset could maximally cast. Scales with the subset, so one bar fits both a 5-model set (0.5 = 3-of-5 votes) and a single-model subset. Set 0 for plain argmax (no gate).",
+                    "fa_icon": "fas fa-scale-balanced"
+                },
+                "ensemble_min_votes": {
+                    "type": "integer",
+                    "default": 0,
+                    "minimum": 0,
+                    "description": "Hard voting only: optional absolute floor on agreeing votes, applied on top of ensemble_min_frac. 0 disables it. A floor the voting subset cannot reach is ignored with a warning.",
+                    "fa_icon": "fas fa-check-double"
+                },
+                "ensemble_min_agree": {
+                    "type": "integer",
+                    "default": 2,
+                    "minimum": 0,
+                    "description": "Weighted / hard voting only. A relabel needs at least this many models of the kingdom's voting subset on the winning Order. Unlike ensemble_min_votes it is never relaxed for a small subset, so a single-model subset relabels nothing and its Unknown consensi stay Unknown. 0 disables it.",
+                    "fa_icon": "fas fa-handshake"
+                },
+                "ensemble_min_weight": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "description": "Weighted voting only: optional absolute floor on the winning Order's summed weight, applied on top of ensemble_min_frac. 0 disables it. Prefer ensemble_min_frac: an absolute floor is subset-blind, so a value tuned for five models can be unreachable for a single-model kingdom subset.",
+                    "fa_icon": "fas fa-scale-balanced"
+                },
+                "ensemble_weights": {
+                    "type": "string",
+                    "description": "Weighted voting: explicit per-model weights as 'name=w' pairs, e.g. 'neuralte=1.5,terrier=1.5,create=1.3,teclass2=1.2,deepte=1.1'. Unset uses built-in defaults that prioritise NeuralTE and Terrier.",
+                    "fa_icon": "fas fa-sliders"
+                },
+                "ensemble_weights_from": {
+                    "type": "string",
+                    "description": "Weighted voting: derive per-model weights dynamically from an order-level metrics TSV (evaluate_classification.py '*.all_models.summary_metrics.tsv'), normalised to mean 1.0. Overridden by --ensemble_weights.",
+                    "fa_icon": "fas fa-file-import"
+                },
+                "ensemble_weight_metric": {
+                    "type": "string",
+                    "default": "macro_f1",
+                    "enum": ["macro_f1", "macro_precision", "macro_recall", "mcc", "accuracy"],
+                    "description": "Metric column read from --ensemble_weights_from to set per-model weights.",
+                    "fa_icon": "fas fa-ruler"
+                },
+                "ensemble_kingdom_aware": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Run (and vote with) only the model subset for each sample's organism_type. Classifiers outside the subset are not launched at all, so the run is not loaded with tools that would be dropped from the vote anyway. Set false to run every enabled model on every sample (the two-step vote still uses only models with a two-step weight).",
+                    "fa_icon": "fas fa-sitemap"
+                },
+                "ensemble_models_animal": {
+                    "type": "string",
+                    "default": "teclass2,neuralte,terrier",
+                    "description": "Comma-separated model subset that runs and votes for animal samples when --ensemble_kingdom_aware. The default is the set the two-step settings use.",
+                    "fa_icon": "fas fa-hippo"
+                },
+                "ensemble_models_plant": {
+                    "type": "string",
+                    "default": "teclass2,create,neuralte,terrier",
+                    "description": "Comma-separated model subset that runs and votes for plant samples when --ensemble_kingdom_aware. The default is the set the two-step settings use.",
+                    "fa_icon": "fas fa-seedling"
+                },
+                "ensemble_models_fungus": {
+                    "type": "string",
+                    "default": "create,neuralte,terrier",
+                    "description": "Comma-separated model subset that runs and votes for fungal samples when --ensemble_kingdom_aware. The default is the set the two-step settings use.",
+                    "fa_icon": "fas fa-bacterium"
+                },
+                "skip_teclass2": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Drop TEclass2 (Transformer) from the re-classification ensemble.",
+                    "fa_icon": "fas fa-forward"
+                },
+                "teclass2_repo_url": {
+                    "type": "string",
+                    "default": "https://github.com/IOB-Muenster/TEclass2.git",
+                    "description": "Git URL to clone TEclass2 from when --teclass2_repo is not provided.",
+                    "fa_icon": "fab fa-github"
+                },
+                "teclass2_revision": {
+                    "type": "string",
+                    "default": "612470ea42ee1b9897406c18967e8b7558775dac",
+                    "description": "Git commit, tag, or branch of TEclass2 to clone (default: the commit the ensemble was tuned with).",
+                    "fa_icon": "fas fa-code-branch"
+                },
+                "teclass2_model_url": {
+                    "type": "string",
+                    "default": "https://bioinformatics.uni-muenster.de/tools/teclass2/models/teclass2-models.tgz",
+                    "description": "URL of the pre-trained TEclass2 model .tgz to download when --teclass2_model is not provided.",
+                    "fa_icon": "fas fa-link"
+                },
+                "teclass2_cache": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "storeDir location where the fetched TEclass2 repo + model are cached and reused across runs. Defaults to ${launchDir}/teclass2_cache.",
+                    "fa_icon": "fas fa-database"
+                },
+                "teclass2_repo": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Override: path to an existing cloned TEclass2 repo (skips the clone step).",
+                    "fa_icon": "fas fa-folder-open"
+                },
+                "teclass2_model": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Override: path to an existing extracted TEclass2 model directory (skips the download step).",
+                    "fa_icon": "fas fa-folder-open"
+                },
+                "teclass2_checkpoint": {
+                    "type": "string",
+                    "description": "Override: checkpoint path (relative to the model dir, or absolute) if auto-discovery picks the wrong one.",
+                    "fa_icon": "fas fa-file-import"
+                },
+                "teclass2_min_score": {
+                    "type": "number",
+                    "default": 0.7,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": "TEclass2 abstains (the consensus stays Unknown) when its top class probability is below this threshold; only confident calls become ensemble votes. Default 0.7 (low-probability calls added noise that hurt the ensemble). Set 0 to never abstain.",
+                    "fa_icon": "fas fa-percentage"
+                },
+                "skip_deepte": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Drop DeepTE (CNN, organism-aware) from the re-classification ensemble. DeepTE's species model is chosen automatically from each sample's organism_type.",
+                    "fa_icon": "fas fa-forward"
+                },
+                "deepte_repo_url": {
+                    "type": "string",
+                    "default": "https://github.com/LiLabAtVT/DeepTE.git",
+                    "description": "Git URL to clone DeepTE from when --deepte_repo is not set.",
+                    "fa_icon": "fab fa-github"
+                },
+                "deepte_revision": {
+                    "type": "string",
+                    "default": "1f76ff9da6e1dbfbb771868cdd0e149ec41457a2",
+                    "description": "Git commit, tag, or branch of DeepTE to clone.",
+                    "fa_icon": "fas fa-code-branch"
+                },
+                "deepte_model_url_plants": {
+                    "type": "string",
+                    "description": "URL of the DeepTE Plants_model.tar.gz (cyVerse).",
+                    "fa_icon": "fas fa-link"
+                },
+                "deepte_model_url_metazoans": {
+                    "type": "string",
+                    "description": "URL of the DeepTE Metazoans_model.tar.gz (cyVerse).",
+                    "fa_icon": "fas fa-link"
+                },
+                "deepte_model_url_fungi": {
+                    "type": "string",
+                    "description": "URL of the DeepTE Fungi_model.tar.gz (cyVerse).",
+                    "fa_icon": "fas fa-link"
+                },
+                "deepte_model_url_others": {
+                    "type": "string",
+                    "description": "URL of the DeepTE Others_model.tar.gz (cyVerse).",
+                    "fa_icon": "fas fa-link"
+                },
+                "deepte_cache": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "storeDir location caching the fetched DeepTE repo + models. Defaults to ${launchDir}/deepte_cache.",
+                    "fa_icon": "fas fa-database"
+                },
+                "deepte_repo": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Override: path to an existing DeepTE clone (skips the clone step).",
+                    "fa_icon": "fas fa-folder-open"
+                },
+                "deepte_model": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Override: path to an existing extracted DeepTE models dir (skips the download).",
+                    "fa_icon": "fas fa-folder-open"
+                },
+                "skip_create": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Drop CREATE (attention-based CNN+RNN; Wicker taxonomy) from the re-classification ensemble. Its source is cloned and its pre-trained models are fetched from Google Drive (via gdown) and cached at run time.",
+                    "fa_icon": "fas fa-forward"
+                },
+                "create_repo_url": {
+                    "type": "string",
+                    "default": "https://github.com/yangqi-cs/CREATE.git",
+                    "description": "Git URL to clone CREATE from when --create_repo is not set.",
+                    "fa_icon": "fab fa-github"
+                },
+                "create_revision": {
+                    "type": "string",
+                    "default": "4f686b61d87783063f0877970c2471e034641b24",
+                    "description": "Git commit, tag, or branch of CREATE to clone (default: the commit the ensemble was tuned with).",
+                    "fa_icon": "fas fa-code-branch"
+                },
+                "create_model_gdrive_id": {
+                    "type": "string",
+                    "default": "1OWzmD5sMM7kAJjKmq0LS3HibqzNVFThe",
+                    "description": "Google Drive file id of CREATE's model.tar.gz (the 9 hierarchical classifiers), downloaded with gdown.",
+                    "fa_icon": "fab fa-google-drive"
+                },
+                "create_prob_thr": {
+                    "type": "number",
+                    "default": 0.7,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": "CREATE per-node probability threshold (-p): below it, a sequence stops at a higher (coarser) hierarchy level. Default 0.7 is the shared confidence cut-off used by every probability-emitting model (TEclass2/Terrier); set 0 to always descend to the arg-max leaf.",
+                    "fa_icon": "fas fa-percentage"
+                },
+                "create_cache": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "storeDir location caching the fetched CREATE repo and models. Defaults to ${launchDir}/create_cache.",
+                    "fa_icon": "fas fa-database"
+                },
+                "create_repo": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Override: path to an existing CREATE clone (skips the clone step).",
+                    "fa_icon": "fas fa-folder-open"
+                },
+                "create_model": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Override: path to an existing extracted CREATE model dir (skips the Google Drive download).",
+                    "fa_icon": "fas fa-folder-open"
+                },
+                "skip_neuralte": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Drop NeuralTE (CNN; RepeatMasker labels via --is_wicker 0) from the re-classification ensemble. Source and its in-repo model are cloned and cached at run time.",
+                    "fa_icon": "fas fa-forward"
+                },
+                "neuralte_repo_url": {
+                    "type": "string",
+                    "default": "https://github.com/CSU-KangHu/NeuralTE.git",
+                    "description": "Git URL to clone NeuralTE from when --neuralte_repo is not set.",
+                    "fa_icon": "fab fa-github"
+                },
+                "neuralte_revision": {
+                    "type": "string",
+                    "default": "18e99a9d4ca4d5dc6cf1fcdbc1a4968d0cb6b22e",
+                    "description": "Git commit, tag, or branch of NeuralTE to clone (default: the commit the ensemble was tuned with).",
+                    "fa_icon": "fas fa-code-branch"
+                },
+                "neuralte_cache": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "storeDir location caching the fetched NeuralTE repo (which ships the model). Defaults to ${launchDir}/neuralte_cache.",
+                    "fa_icon": "fas fa-database"
+                },
+                "neuralte_repo": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Override: path to an existing NeuralTE clone (skips the clone step).",
+                    "fa_icon": "fas fa-folder-open"
+                },
+                "skip_terrier": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Drop Terrier (PyTorch/corgi; RepeatMasker labels) from the re-classification ensemble. Model weights auto-download and are baked into the container image.",
+                    "fa_icon": "fas fa-forward"
+                },
+                "terrier_min_prob": {
+                    "type": "number",
+                    "default": 0.7,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": "Terrier abstains from voting when its arg-max class probability is below this threshold. Default 0.7 is the shared confidence cut-off across all probability-emitting models (TEclass2, CREATE, Terrier).",
+                    "fa_icon": "fas fa-percentage"
+                },
+                "terrier_use_gpu": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Run Terrier on the GPU. Off by default even under --use_gpu, because Terrier's image bundles a Torch that often needs a newer CUDA driver than the node provides (aborts with 'driver too old' on checkpoint load and predict). Enable only where the driver is new enough.",
+                    "fa_icon": "fas fa-microchip"
+                },
+                "teclass2_container": {
+                    "type": "string",
+                    "default": "oras://ghcr.io/lesidon/teannotate-teclass2:1.0",
+                    "description": "Container image for the TEclass2 classifier (public GHCR). Falls back to the Conda env when no container engine is active or the registry is unreachable; override with a local .sif path or null.",
+                    "fa_icon": "fas fa-cube"
+                },
+                "create_container": {
+                    "type": "string",
+                    "default": "oras://ghcr.io/lesidon/teannotate-create:1.0",
+                    "description": "Container image for the CREATE classifier (public GHCR). Conda fallback as above.",
+                    "fa_icon": "fas fa-cube"
+                },
+                "deepte_container": {
+                    "type": "string",
+                    "default": "oras://ghcr.io/lesidon/teannotate-deepte:1.0",
+                    "description": "Container image for the DeepTE classifier (public GHCR). Conda fallback as above.",
+                    "fa_icon": "fas fa-cube"
+                },
+                "neuralte_container": {
+                    "type": "string",
+                    "default": "oras://ghcr.io/lesidon/teannotate-neuralte:1.0",
+                    "description": "Container image for the NeuralTE classifier (public GHCR). Conda fallback as above.",
+                    "fa_icon": "fas fa-cube"
+                },
+                "terrier_container": {
+                    "type": "string",
+                    "default": "oras://ghcr.io/lesidon/teannotate-terrier:1.0",
+                    "description": "Container image for the Terrier classifier (public GHCR). Conda fallback as above.",
+                    "fa_icon": "fas fa-cube"
+                },
+                "use_gpu": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Run GPU-capable steps on a GPU. Adds Singularity --nv passthrough; TEclass2 selects cuda vs cpu from this flag and falls back to CPU when off.",
+                    "fa_icon": "fas fa-microchip"
+                },
+                "cdhit_identity": {
+                    "type": "number",
+                    "default": 0.8,
+                    "minimum": 0.5,
+                    "maximum": 1.0,
+                    "description": "CD-HIT-EST sequence identity threshold for library deduplication (80-80-80 rule default).",
+                    "fa_icon": "fas fa-sliders-h",
+                    "hidden": true
+                },
+                "cdhit_coverage": {
+                    "type": "number",
+                    "default": 0.8,
+                    "minimum": 0.5,
+                    "maximum": 1.0,
+                    "description": "CD-HIT-EST alignment coverage threshold (applied to both query and subject).",
+                    "fa_icon": "fas fa-sliders-h",
+                    "hidden": true
+                },
+                "dedup_mmseqs_min_seqs": {
+                    "type": "integer",
+                    "default": 20000,
+                    "minimum": 0,
+                    "description": "Cluster libraries with at least this many sequences from an MMseqs2 search instead of with CD-HIT-EST (same greedy rule, identity and coverage); 0 = always CD-HIT-EST.",
+                    "help_text": "CD-HIT-EST compares its first batch of (the longest) sequences on one thread, which does not finish within days on libraries of ~30,000 consensi from large plant genomes. These libraries are instead searched against themselves with MMseqs2 on both strands, and CD-HIT's greedy rule is applied to the hits: longest sequence first, each joins its most identical earlier representative, or becomes one (maize: 35 min on 16 CPUs). It agrees with CD-HIT-EST on 57-65% of co-clustered pairs (rice, zebrafish), against 44-55% for `mmseqs cluster`, which ignores most opposite-strand pairs.",
+                    "fa_icon": "fas fa-sliders-h",
+                    "hidden": true
+                },
+                "dedup_class_aware": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "After CD-HIT-EST, repair clusters that mix TE classes: relabel Unknown representatives from their classified members and keep foreign-class members as their own families (see bin/refine_dedup.py).",
+                    "fa_icon": "fas fa-layer-group"
+                },
+                "dedup_split_chimeras": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "With --dedup_class_aware: align the library against itself (blastn) and cut segments of another TE class (>=500 bp, >=80% identity, at most half its length) out of a consensus, treated as a chimera; the remaining pieces keep its label.",
+                    "fa_icon": "fas fa-cut"
+                },
+                "dedup_rep_by_copies": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Experimental, off by default. Make the member with the most full-length genomic copies (>= 75% identity over >= 90% of it) each CD-HIT cluster's representative, within the representative's class, instead of the longest. Harmful in LTR-rich genomes: CD-HIT clusters an LTR terminus with its full element, and the terminus, having the most copies, replaced the element (benchmark: Drosophila and Zymoseptoria lost LTR F1 and perfect families).",
+                    "fa_icon": "fas fa-copy"
+                },
+                "curation_domain_relabel": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "After TEtrimmer, give a curated consensus the class of its TE protein domains (TEsorter) when they point to another class than its label, e.g. a HELIANO 'Helitron' carrying a Gypsy reverse transcriptase. Not applied with --skip_tetrimmer, where uncurated chimeric consensi carry domains of only part of their sequence.",
+                    "fa_icon": "fas fa-tag"
+                },
+                "curation_class_aware": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Replace TEtrimmer's own length-based merge with the class-aware one (CD-HIT + refinement), and relabel TEtrimmer consensi that were rebuilt from an element of another class.",
+                    "fa_icon": "fas fa-layer-group"
+                },
+                "evidence_gate": {
+                    "type": "string",
+                    "default": "lite",
+                    "enum": ["lite", "strict", "off"],
+                    "description": "Evidence gate after deduplication (TE_EVIDENCE). Each consensus is scored on a TE protein domain (TEsorter), the same element in another discovery tool's library, and full-length genomic copies. 'lite' drops non-TE repeats (Satellite, rRNA, ...; written to a separate file) and consensi with none of the three; 'strict' also drops consensi whose only evidence is full-length copies; 'off' skips the step.",
+                    "fa_icon": "fas fa-filter"
+                },
+                "evidence_relabel_unknown": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Give an Unknown consensus with a TE protein domain the domain's class (TEsorter, RepeatMasker vocabulary). Multi-class ('mixture') calls are not used.",
+                    "fa_icon": "fas fa-tag"
+                },
+                "evidence_pfam": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Also count TE-specific Pfam domains (reverse transcriptase, integrase, DDE transposases, Helitron Rep/Hel, ...) found on six-frame ORF fragments as domain evidence. REXdb's clade-level profiles miss divergent TEs of unexplored lineages that Pfam's broad family models still detect. Uses the same Pfam-A as TEtrimmer (--pfam_db or the automatic download).",
+                    "fa_icon": "fas fa-dna"
+                },
+                "evidence_tesorter_db": {
+                    "type": "string",
+                    "default": "rexdb",
+                    "description": "TEsorter HMM database for the domain evidence (rexdb covers plant and metazoan TE proteins; rexdb-plant, rexdb-metazoa, gydb, ...).",
+                    "fa_icon": "fas fa-database",
+                    "hidden": true
+                },
+                "evidence_support_identity": {
+                    "type": "number",
+                    "default": 80,
+                    "minimum": 50,
+                    "maximum": 100,
+                    "description": "Percent identity for cross-tool support: another tool's sequences must match the consensus at least this well.",
+                    "fa_icon": "fas fa-percentage",
+                    "hidden": true
+                },
+                "evidence_support_coverage": {
+                    "type": "number",
+                    "default": 0.5,
+                    "minimum": 0.1,
+                    "maximum": 1.0,
+                    "description": "Fraction of the consensus that another tool's sequences must cover for cross-tool support.",
+                    "fa_icon": "fas fa-percentage",
+                    "hidden": true
+                },
+                "evidence_min_full_copies": {
+                    "type": "integer",
+                    "default": 2,
+                    "minimum": 1,
+                    "description": "Full-length genomic copies (>= 75% identity over >= 90% of the consensus) that count as evidence on their own.",
+                    "fa_icon": "fas fa-copy",
+                    "hidden": true
+                },
+                "evidence_min_half_copies": {
+                    "type": "integer",
+                    "default": 5,
+                    "minimum": 0,
+                    "description": "Genomic copies covering >= 50% of the consensus at >= 70% identity that count as copy evidence, as an alternative to >= 2 full-length copies. Old families decay by mutation and deletion and keep partial copies only (RIP, the fungal defence, makes this extreme); in unexplored genomes such families also lack a known protein domain and a second tool. 0 = full-length copies only.",
+                    "fa_icon": "fas fa-copy",
+                    "hidden": true
+                },
+                "tetrimmer_reinject": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Bring back, unchanged, TEtrimmer inputs that it left no consensus for but that carry a TE domain or another tool's support. TEtrimmer keeps a skipped input only with >= 2 full-length copies, which discards real low-copy and degraded families.",
+                    "fa_icon": "fas fa-rotate-left"
+                }
+            }
+        },
+        "masking_options": {
+            "title": "Genome masking options",
+            "type": "object",
+            "fa_icon": "fas fa-mask",
+            "description": "Single-pass RepeatMasker genome masking (Stage 3 final): one run with the classified library and built-in simple/low-complexity detection on, so simple/tandem/satellite and interspersed repeats are reported together in one .tbl. The genome is soft-masked (-xsmall) and an .align is written (-a) for the Stage 4 Kimura landscape.",
+            "properties": {
+                "skip_masking": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Skip the genome masking stage (single-pass RepeatMasker). By default a soft-masked genome, a unified .tbl (simple + interspersed), an .align, and simple/TE/combined GFF3 files are produced for every sample.",
+                    "fa_icon": "fas fa-forward"
+                },
+                "skip_rip": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Skip the RIP (repeat-induced point mutation) scan that runs on fungal genomes after masking: RIP-type C->T mutations of each TE copy against its consensus, RIP indices per copy and family, and large RIP-affected genomic regions (LRARs), reported in 06_masking/.",
+                    "fa_icon": "fas fa-forward"
+                }
+            }
+        },
+        "tr_filter_options": {
+            "title": "Consensus TR filter options",
+            "type": "object",
+            "fa_icon": "fas fa-filter",
+            "description": "Parameters for ejecting TR-dominated consensi from the TE library before curation.",
+            "properties": {
+                "consensus_tr_threshold": {
+                    "type": "number",
+                    "default": 0.9,
+                    "minimum": 0.5,
+                    "maximum": 1.0,
+                    "description": "Fraction of consensus length covered by TRF-mod hits above which the consensus is ejected to the tandem-repeat track.",
+                    "fa_icon": "fas fa-percentage",
+                    "hidden": true
+                },
+                "consensus_tr_min_length": {
+                    "type": "integer",
+                    "default": 200,
+                    "minimum": 50,
+                    "description": "Minimum consensus length (bp) to apply the TR ejection filter. Protects short MITEs from false ejection.",
+                    "fa_icon": "fas fa-ruler",
+                    "hidden": true
+                }
+            }
+        },
+        "visualization_options": {
+            "title": "Visualization options",
+            "type": "object",
+            "fa_icon": "fas fa-chart-bar",
+            "description": "Control output plots and the scripts that generate them.",
+            "properties": {
+                "skip_visualization": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Skip all visualization modules.",
+                    "fa_icon": "fas fa-eye-slash"
+                },
+                "substitution_rate": {
+                    "type": "number",
+                    "description": "Override substitution rate (subst/site/yr) for LTR insertion-age estimation. When null, pipeline selects automatically: plant=1.3e-8, animal=2.2e-9, fungus=1e-9.",
+                    "fa_icon": "fas fa-clock"
+                },
+                "kimura_layout": {
+                    "type": "string",
+                    "default": "both",
+                    "enum": ["both", "stacked", "faceted"],
+                    "description": "Kimura divergence landscape layout: one stacked plot (<id>.kimura_landscape), one panel per TE class (<id>.kimura_landscape_faceted), or both. The y axis is % of the genome.",
+                    "fa_icon": "fas fa-columns"
+                },
+                "karyoplot_window_kb": {
+                    "type": "integer",
+                    "default": 500,
+                    "minimum": 10,
+                    "description": "Window size in kb for TE density calculation in the chromosome karyoplot (plot 3). Only runs on chromosome-scale assemblies.",
+                    "fa_icon": "fas fa-ruler-horizontal"
+                },
+                "plot_formats": {
+                    "type": "string",
+                    "default": "png,svg",
+                    "pattern": "^(png|svg|pdf)(,(png|svg|pdf))*$",
+                    "description": "Comma-separated list of output formats for plots. Options: png, svg, pdf.",
+                    "fa_icon": "fas fa-file-image"
+                }
+            }
+        },
+        "hpc_options": {
+            "title": "HPC scheduler options",
+            "type": "object",
+            "fa_icon": "fas fa-server",
+            "description": "Options for running the pipeline on an HPC cluster. Combine with a scheduler profile: -profile singularity,slurm",
+            "properties": {
+                "queue": {
+                    "type": "string",
+                    "description": "Scheduler queue or partition to submit all jobs to. Maps to SLURM --partition, PBS -q, LSF -q, SGE -q.",
+                    "fa_icon": "fas fa-list"
+                },
+                "gpu_queue": {
+                    "type": "string",
+                    "description": "Dedicated GPU queue or partition for process_gpu-labelled jobs. Falls back to --queue when not set.",
+                    "fa_icon": "fas fa-microchip"
+                },
+                "clusterOptions": {
+                    "type": "string",
+                    "description": "Raw extra scheduler directives appended to every job submission, e.g. '--account=proj --reservation=r1' (SLURM) or '-A proj' (PBS/LSF).",
+                    "fa_icon": "fas fa-terminal"
+                },
+                "singularity_cache_dir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Path to a shared directory where Singularity .sif images are cached. Point this at a Lustre/GPFS path so images are pulled once and reused across nodes. Also readable from $NXF_SINGULARITY_CACHEDIR. Pre-populate it once with bin/prepull_containers.sh so the flaky ORAS/GHCR pull of the DL images never happens mid-run.",
+                    "fa_icon": "fas fa-hdd"
+                },
+                "singularity_pull_timeout": {
+                    "type": "string",
+                    "default": "60 min",
+                    "description": "Maximum time for a single Singularity image pull (raised from Nextflow's 20-minute default because the DL classifier images are multi-GB). Does not fix ORAS 'PROTOCOL_ERROR' stream failures — pre-pull those with bin/prepull_containers.sh.",
+                    "fa_icon": "fas fa-clock"
+                },
+                "conda_cachedir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Path to a shared directory where conda environments are cached. Use with -profile conda or -profile mamba. Also readable from $NXF_CONDA_CACHEDIR.",
+                    "fa_icon": "fas fa-database"
+                },
+                "auto_bind_ps": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Auto-detect the host `ps` (and its procps shared library) and bind-mount it into every Singularity/Apptainer container, so Nextflow's task-metric collector always has a working `ps` even in images that ship a missing/broken one (e.g. rocker/tidyverse 'libprocps.so.4 not found'). Detection runs on the driver host at config time (under the local executor the driver is the compute node). Set false to disable.",
+                    "fa_icon": "fas fa-microchip"
+                },
+                "host_ps": {
+                    "type": "string",
+                    "description": "Force a specific host `ps` binary (absolute path) to bind-mount into every Singularity/Apptainer container at /usr/bin/ps. Overrides auto_bind_ps detection; normally unneeded.",
+                    "fa_icon": "fas fa-microchip"
+                },
+                "use_mamba": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Solve Conda environments with mamba instead of conda (faster, far less memory — avoids OOM/exit 137 on heavy envs like Starfish). Requires mamba on PATH. Applies to the conda and singularity (conda-fallback) profiles.",
+                    "fa_icon": "fas fa-bolt"
+                },
+                "container_fallback": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "When a container engine is active, automatically fall back to a Conda environment for any process whose image is neither cached locally (.sif/.img) nor pullable from a registry. Set false for pure profile switching with no auto-fallback.",
+                    "fa_icon": "fas fa-random"
+                },
+                "assume_offline": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Assume no container registry is reachable: skip the network reachability probe and force the Conda fallback for any image not already present in the Singularity cache. Requires -profile singularity (with conda.enabled). Named assume_offline rather than offline because -offline is a core Nextflow option.",
+                    "fa_icon": "fas fa-plane"
+                },
+                "container_registry_probe": {
+                    "type": "string",
+                    "default": "quay.io",
+                    "description": "Registry host probed once (HEAD /v2/) to decide whether uncached container images can still be pulled, controlling the Conda fallback. Ignored when --assume_offline is set.",
+                    "fa_icon": "fas fa-network-wired",
+                    "hidden": true
+                }
+            }
+        },
+        "max_job_request_options": {
+            "title": "Max job request options",
+            "type": "object",
+            "fa_icon": "fas fa-microchip",
+            "description": "Hard upper limits on per-process resource requests. Pipeline will not exceed these.",
+            "properties": {
+                "max_cpus": {
+                    "type": "integer",
+                    "description": "Maximum number of CPUs that can be requested for any single job.",
+                    "default": 32,
+                    "minimum": 1,
+                    "fa_icon": "fas fa-microchip",
+                    "hidden": true
+                },
+                "max_memory": {
+                    "type": "string",
+                    "description": "Maximum memory that can be requested for any single job.",
+                    "default": "128.GB",
+                    "pattern": "^\\d+(\\.\\d+)?\\.?(K|M|G|T)?B$",
+                    "fa_icon": "fas fa-memory",
+                    "hidden": true
+                },
+                "max_time": {
+                    "type": "string",
+                    "description": "Maximum time that can be requested for any single job.",
+                    "default": "72.h",
+                    "pattern": "^(\\d+\\.?\\s*(s|m|h|d|day)\\s*)+$",
+                    "fa_icon": "fas fa-clock",
+                    "hidden": true
+                }
+            }
+        },
+        "generic_options": {
+            "title": "Generic options",
+            "type": "object",
+            "fa_icon": "fas fa-file-import",
+            "description": "Less common options for the pipeline, typically set in a config file.",
+            "properties": {
+                "help": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Display help text.",
+                    "fa_icon": "fas fa-question-circle",
+                    "hidden": true
+                },
+                "help_full": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Display full help text including hidden parameters.",
+                    "fa_icon": "fas fa-question-circle",
+                    "hidden": true
+                },
+                "version": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Display version and exit.",
+                    "fa_icon": "fas fa-tag",
+                    "hidden": true
+                },
+                "validate_params": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Boolean whether to validate parameters against the schema at runtime.",
+                    "fa_icon": "fas fa-check-square",
+                    "hidden": true
+                },
+                "monochrome_logs": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Do not use coloured log outputs.",
+                    "fa_icon": "fas fa-palette",
+                    "hidden": true
+                },
+                "show_hidden": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Show all params including hidden ones in --help output.",
+                    "fa_icon": "fas fa-eye",
+                    "hidden": true
+                }
+            }
+        }
+    },
+    "allOf": [
+        { "$ref": "#/$defs/input_output_options" },
+        { "$ref": "#/$defs/organism_routing_options" },
+        { "$ref": "#/$defs/library_options" },
+        { "$ref": "#/$defs/masking_options" },
+        { "$ref": "#/$defs/tr_filter_options" },
+        { "$ref": "#/$defs/visualization_options" },
+        { "$ref": "#/$defs/hpc_options" },
+        { "$ref": "#/$defs/max_job_request_options" },
+        { "$ref": "#/$defs/generic_options" }
+    ]
+}

@@ -1,0 +1,30 @@
+# DeepTE (LiLabAtVT/DeepTE) — script-based, no bioconda/registry package. README
+# recommends Python 3.7 + TensorFlow 2.2 + Keras 2.3.1.
+#
+# Conda resolves ONLY python + pip here; EVERYTHING else is pip-installed. Pinning
+# numpy/scikit-learn (let alone tensorflow/keras) via conda makes the classic conda
+# SAT-solver thrash and get killed (status 143): numpy=1.16 is incompatible with the
+# py37 scikit-learn 0.24.2 conda builds, and TF/Keras compound it. pip resolves the
+# stack linearly and reliably. TensorFlow 2.2.0 constrains numpy<1.19 and pulls a
+# compatible h5py 2.10 so Keras 2.3.1 loads the .h5 models. CPU-only; no GPU build.
+#
+# protobuf is pinned <3.20: TF 2.2's generated *_pb2 code breaks with protobuf 4.x
+# ("Descriptors cannot not be created directly"); 3.19.6 is the safe pin.
+#
+# (If a conda solve ever stalls again, run with --use_mamba, which uses the libmamba
+# solver and avoids the classic solver's backtracking entirely.)
+name: deepte
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - python=3.7
+  - pip
+  - pip:
+      - numpy==1.18.5
+      - tensorflow==2.2.0
+      - keras==2.3.1
+      - scikit-learn==0.24.2
+      - biopython==1.79
+      - protobuf==3.19.6

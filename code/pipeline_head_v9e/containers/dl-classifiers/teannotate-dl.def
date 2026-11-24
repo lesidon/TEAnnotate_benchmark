@@ -1,0 +1,115 @@
+# Apptainer/Singularity definition for the DL TE-classifier image:
+#   TEclass2 + CREATE + DeepTE + NeuralTE + Terrier (five conda envs in one image).
+# Equivalent to containers/dl-classifiers/Dockerfile, for building directly on an
+# HPC cluster (no Docker needed).
+#
+# BUILD FROM THE REPO ROOT (so the %files paths resolve), with build scratch on a
+# writable filesystem (NOT the read-only /trinity home):
+#
+#   export APPTAINER_TMPDIR=/beegfs/home/$USER/tmp/apptainer_tmp
+#   export APPTAINER_CACHEDIR=/beegfs/home/$USER/tmp/apptainer_cache
+#   mkdir -p "$APPTAINER_TMPDIR" "$APPTAINER_CACHEDIR"
+#   apptainer build --fakeroot teannotate-dl.sif containers/dl-classifiers/teannotate-dl.def
+#
+# If --fakeroot is not permitted on your cluster, try plain `apptainer build` (newer
+# Apptainer falls back to proot), or build in the cloud with `--remote` (needs a free
+# Sylabs token), or ask an admin to enable fakeroot (subuid/subgid).
+#
+# Then point the pipeline at the local image: --dl_container /abs/path/teannotate-dl.sif
+
+Bootstrap: docker
+From: mambaorg/micromamba:1.5.8
+
+# NOTE: stage into /opt, NOT /tmp. Apptainer bind-mounts the host's /tmp over the
+# container's /tmp during %post, which would hide anything %files copied to /tmp.
+%files
+    assets/environments/teclass2.yml /opt/teclass2.yml
+    assets/environments/create.yml   /opt/create.yml
+    assets/environments/deepte.yml   /opt/deepte.yml
+    assets/environments/neuralte.yml /opt/neuralte.yml
+    assets/environments/terrier.yml  /opt/terrier.yml
+
+%post
+    set -eu
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    export PATH=/opt/conda/bin:/bin:/usr/bin:$PATH
+    export XDG_CACHE_HOME=/opt/cache TORCH_HOME=/opt/cache/torch HF_HOME=/opt/cache/hf
+    mkdir -p /opt/cache
+
+    # git + curl via conda (avoids needing apt/root inside the build). procps-ng
+    # supplies `ps`, which Nextflow calls to collect per-task metrics; it installs
+    # into /opt/conda/bin (already first on PATH via %environment).
+    micromamba install -y -n base -c conda-forge git curl tar gzip procps-ng
+
+    # ── 1. Conda envs (one per tool) ──────────────────────────────────────────
+    micromamba create -y -n teclass2 -f /opt/teclass2.yml
+    micromamba create -y -n create   -f /opt/create.yml
+    micromamba create -y -n deepte   -f /opt/deepte.yml
+    micromamba create -y -n neuralte -f /opt/neuralte.yml
+    micromamba create -y -n terrier  -f /opt/terrier.yml
+    micromamba clean -ay
+
+    # Explicit pip (do NOT rely on micromamba processing the yml `pip:` subsection).
+    # protobuf<3.20 is required for DeepTE's TF 2.2.
+    micromamba run -n teclass2 pip install --no-cache-dir \
+        "torch<1.13" torchvision tokenizers "transformers==4.17" accelerate
+    micromamba run -n create   pip install --no-cache-dir "tensorflow-gpu==2.4.0" gdown
+    micromamba run -n deepte   pip install --no-cache-dir \
+        "numpy==1.18.5" "tensorflow==2.2.0" "keras==2.3.1" \
+        "scikit-learn==0.24.2" "biopython==1.79" "protobuf==3.19.6"
+    micromamba run -n neuralte pip install --no-cache-dir \
+        "numpy==1.19.5" "tensorflow==2.6.0" "keras==2.6.0" "protobuf==3.19.6" \
+        "h5py==3.1.0" "scikit-learn==1.2.0" "biopython==1.78" \
+        "seaborn==0.11.2" "matplotlib==3.5.3" openpyxl
+    micromamba run -n terrier  pip install --no-cache-dir bio-terrier "click<8.2"
+
+    # Fail the build NOW if any env is half-populated.
+    micromamba run -n teclass2 python -c "import torch, transformers, numpy"
+    micromamba run -n create   python -c "import pandas, numpy, tensorflow"
+    micromamba run -n deepte   python -c "import numpy, tensorflow, keras"
+    micromamba run -n neuralte python -c "import tensorflow, keras, Bio, sklearn"
+    micromamba run -n terrier  terrier --help >/dev/null
+
+    # ── 2. Tool source ────────────────────────────────────────────────────────
+    git clone https://github.com/IOB-Muenster/TEclass2.git /opt/teclass2
+    git clone https://github.com/yangqi-cs/CREATE.git      /opt/create
+    git clone https://github.com/LiLabAtVT/DeepTE.git      /opt/deepte
+    git clone https://github.com/CSU-KangHu/NeuralTE.git   /opt/neuralte
+    # (Terrier has no repo — it is the pip package; its weights are fetched below.)
+
+    # ── 3. Pretrained models ──────────────────────────────────────────────────
+    # NeuralTE's model ships in its repo (/opt/neuralte/models/NeuralTE_model.h5).
+    # DeepTE's models are NOT baked: they are segmented by organism group and the
+    # pipeline's DEEPTE_FETCH_MODEL pulls only the needed group at runtime (host
+    # cache, bind-mounted in) — keeps the image small and the build fast.
+    # Scratch goes to /opt, not /tmp (host /tmp is bind-mounted here during %post).
+    mkdir -p /opt/models/teclass2 /opt/models/create
+    curl -fL "https://bioinformatics.uni-muenster.de/tools/teclass2/models/teclass2-models.tgz" -o /opt/tc2.tgz
+    tar -xzf /opt/tc2.tgz -C /opt/models/teclass2 && rm /opt/tc2.tgz
+
+    cd /opt/models/create
+    micromamba run -n create gdown "https://drive.google.com/uc?id=1OWzmD5sMM7kAJjKmq0LS3HibqzNVFThe" -O model.tar.gz
+    tar -xzf model.tar.gz && rm model.tar.gz
+
+    # Terrier weights auto-download on first run — trigger that now (best-effort; the
+    # download happens at model-load, before inference, so a failed seed run is fine).
+    micromamba run -n create python -c "import random; random.seed(0); print('>seed'); print(''.join(random.choice('ACGT') for _ in range(600)))" > /opt/seed.fa
+    micromamba run -n terrier terrier --input /opt/seed.fa --output-csv /opt/seed.csv || true
+    rm -f /opt/seed.fa /opt/seed.csv
+
+    chmod -R a+rX /opt
+
+%environment
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    export PATH=/opt/conda/bin:/bin:/usr/bin:$PATH
+    export XDG_CACHE_HOME=/opt/cache TORCH_HOME=/opt/cache/torch HF_HOME=/opt/cache/hf
+    export TEANNOTATE_TECLASS2=/opt/teclass2
+    export TEANNOTATE_CREATE=/opt/create
+    export TEANNOTATE_DEEPTE=/opt/deepte
+    export TEANNOTATE_NEURALTE=/opt/neuralte
+    export TEANNOTATE_TECLASS2_MODEL=/opt/models/teclass2
+    export TEANNOTATE_CREATE_MODEL=/opt/models/create
+    export TEANNOTATE_NEURALTE_MODEL=/opt/neuralte/models/NeuralTE_model.h5
+
+%labels
+    Description TEclass2 + CREATE + DeepTE + NeuralTE + Terrier TE classifiers (5 conda envs) for nf-core/teannotate

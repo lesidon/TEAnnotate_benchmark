@@ -1,0 +1,64 @@
+species,display,role,genome_gb,stage,cpu_h,wall_h,source
+arabidopsis_thaliana,A. thaliana,dev,0.119668634,edta,109.14321546194446,6.856160277777778,ablation/libs/arabidopsis_thaliana/edta.trace.tsv
+arabidopsis_thaliana,A. thaliana,dev,0.119668634,heliano,10.638436008611112,3.3028363888888888,ablation/libs/arabidopsis_thaliana/heliano.trace.tsv
+arabidopsis_thaliana,A. thaliana,dev,0.119668634,hite,7.30771014,0.7508950000000001,ablation/libs/arabidopsis_thaliana/hite.trace.tsv
+arabidopsis_thaliana,A. thaliana,dev,0.119668634,tetrimmer,55.3773088888889,2.562222222222222,ablation/combos/arabidopsis_thaliana/edta+heliano+hite/trace_with.tsv
+arabidopsis_thaliana,A. thaliana,dev,0.119668634,library_other,2.5888015894444445,1.0919894444444445,ablation/combos/arabidopsis_thaliana/edta+heliano+hite/trace_with.tsv
+oryza_sativa,O. sativa,dev,0.374422835,edta,490.95776075555557,33.57205694444444,ablation/libs/oryza_sativa/edta.trace.tsv
+oryza_sativa,O. sativa,dev,0.374422835,heliano,47.39393067499999,9.921275,ablation/libs/oryza_sativa/heliano.trace.tsv
+oryza_sativa,O. sativa,dev,0.374422835,hite,87.08413795,8.847316666666666,ablation/libs/oryza_sativa/hite.trace.tsv
+oryza_sativa,O. sativa,dev,0.374422835,tetrimmer,502.83666666666664,20.916666666666668,ablation/combos/oryza_sativa/edta+heliano+hite/trace_with.tsv
+oryza_sativa,O. sativa,dev,0.374422835,library_other,94.88077639083332,10.343290555555555,ablation/combos/oryza_sativa/edta+heliano+hite/trace_with.tsv
+drosophila_melanogaster,D. melanogaster,dev,0.143726002,earlgrey,125.3737107625,14.877620833333333,ablation/libs/drosophila_melanogaster/earlgrey.trace.tsv
+drosophila_melanogaster,D. melanogaster,dev,0.143726002,hite,8.793870727500002,0.9645575000000001,ablation/libs/drosophila_melanogaster/hite.trace.tsv
+drosophila_melanogaster,D. melanogaster,dev,0.143726002,tetrimmer,63.39011972222222,2.7752777777777777,ablation/combos/drosophila_melanogaster/earlgrey+hite/trace_with.tsv
+drosophila_melanogaster,D. melanogaster,dev,0.143726002,library_other,0.8971926383333334,0.7477277777777778,ablation/combos/drosophila_melanogaster/earlgrey+hite/trace_with.tsv
+caenorhabditis_elegans,C. elegans,dev,0.100286401,earlgrey,24.639275384166666,4.944666944444444,ablation/libs/caenorhabditis_elegans/earlgrey.trace.tsv
+caenorhabditis_elegans,C. elegans,dev,0.100286401,hite,4.65518391111111,0.49313388888888887,ablation/libs/caenorhabditis_elegans/hite.trace.tsv
+caenorhabditis_elegans,C. elegans,dev,0.100286401,tetrimmer,10.539583333333333,0.5208333333333334,ablation/combos/caenorhabditis_elegans/earlgrey+hite/trace_with.tsv
+caenorhabditis_elegans,C. elegans,dev,0.100286401,library_other,0.32784952305555554,0.13354944444444444,ablation/combos/caenorhabditis_elegans/earlgrey+hite/trace_with.tsv
+zymoseptoria_tritici,Z. tritici,dev,0.039686251,earlgrey,18.748271230000004,5.355118888888889,ablation/libs/zymoseptoria_tritici/earlgrey.trace.tsv
+zymoseptoria_tritici,Z. tritici,dev,0.039686251,hite,1.8670606977777775,0.2428538888888889,ablation/libs/zymoseptoria_tritici/hite.trace.tsv
+zymoseptoria_tritici,Z. tritici,dev,0.039686251,tetrimmer,15.039851944444445,1.186388888888889,ablation/combos/zymoseptoria_tritici/earlgrey+hite/trace_with.tsv
+zymoseptoria_tritici,Z. tritici,dev,0.039686251,library_other,0.18419348166666666,0.12204805555555555,ablation/combos/zymoseptoria_tritici/earlgrey+hite/trace_with.tsv
+septoria_linicola,S. linicola,dev,0.039589424,earlgrey,20.359916876666666,6.307285277777778,ablation/libs/septoria_linicola/earlgrey.trace.tsv
+septoria_linicola,S. linicola,dev,0.039589424,hite,2.5247092088888885,0.6466980555555555,ablation/libs/septoria_linicola/hite.trace.tsv
+septoria_linicola,S. linicola,dev,0.039589424,tetrimmer,6.9482083333333335,0.8994444444444445,ablation/combos/septoria_linicola/earlgrey+hite/trace_with.tsv
+septoria_linicola,S. linicola,dev,0.039589424,library_other,0.1221818486111111,0.06427555555555556,ablation/combos/septoria_linicola/earlgrey+hite/trace_with.tsv
+chlamydomonas_reinhardtii,C. reinhardtii,heldout,0.111098438,edta,462.51219055555555,23.790555555555557,work/heldout_v9e/chlamydomonas_reinhardtii/out_with (COMPLETED)
+chlamydomonas_reinhardtii,C. reinhardtii,heldout,0.111098438,heliano,0.03012166666666667,0.018333333333333333,work/heldout_v9e/chlamydomonas_reinhardtii/out_with (COMPLETED)
+chlamydomonas_reinhardtii,C. reinhardtii,heldout,0.111098438,hite,5.6033333333333335,0.5555555555555556,work/heldout_v9e/chlamydomonas_reinhardtii/out_with (COMPLETED)
+chlamydomonas_reinhardtii,C. reinhardtii,heldout,0.111098438,tetrimmer,20.4,1.875,work/heldout_v10/chlamydomonas_reinhardtii/out_with
+chlamydomonas_reinhardtii,C. reinhardtii,heldout,0.111098438,library_other,0.7425829186111111,0.6466391666666667,work/heldout_v10/chlamydomonas_reinhardtii/out_with
+zea_mays,Z. mays,heldout,2.182786008,edta,326.2831625,42.50138888888889,work/heldout_v9e/zea_mays/out_with (COMPLETED)
+zea_mays,Z. mays,heldout,2.182786008,heliano,114.3678025,24.7925,work/heldout_v9e/zea_mays/out_with (COMPLETED)
+zea_mays,Z. mays,heldout,2.182786008,hite,943.5269433333333,92.83027777777778,work/heldout_v9e/zea_mays/out_with (COMPLETED)
+zea_mays,Z. mays,heldout,2.182786008,library_other,117.97402157833332,44.121404999999996,work/heldout_v13/zea_mays/out_with
+caenorhabditis_briggsae,C. briggsae,heldout,0.108384165,earlgrey,14.036439999999999,1.46,work/heldout_v9/caenorhabditis_briggsae/out_with (COMPLETED)
+caenorhabditis_briggsae,C. briggsae,heldout,0.108384165,hite,5.394755555555555,0.30444444444444446,work/heldout_v9/caenorhabditis_briggsae/out_with (COMPLETED)
+caenorhabditis_briggsae,C. briggsae,heldout,0.108384165,tetrimmer,8.202630833333334,0.6602777777777777,work/heldout_v10/caenorhabditis_briggsae/out_with
+caenorhabditis_briggsae,C. briggsae,heldout,0.108384165,library_other,0.796789415,0.2275561111111111,work/heldout_v10/caenorhabditis_briggsae/out_with
+gallus_gallus,G. gallus,heldout,1.065365425,earlgrey,1200.077361111111,79.93055555555556,work/heldout_v9/gallus_gallus/out_with (COMPLETED)
+gallus_gallus,G. gallus,heldout,1.065365425,hite,70.5258125,7.745833333333334,work/heldout_v9/gallus_gallus/out_with (CACHED)
+gallus_gallus,G. gallus,heldout,1.065365425,tetrimmer,506.7232155555555,36.24111111111111,work/heldout_v10/gallus_gallus/out_with
+gallus_gallus,G. gallus,heldout,1.065365425,library_other,1.3540054077777777,0.731945,work/heldout_v10/gallus_gallus/out_with
+taeniopygia_guttata,T. guttata,heldout,1.232135591,earlgrey,1023.1892533333333,51.68666666666667,work/heldout_v9/taeniopygia_guttata/out_with (COMPLETED)
+taeniopygia_guttata,T. guttata,heldout,1.232135591,hite,82.14056666666666,8.015277777777778,work/heldout_v9/taeniopygia_guttata/out_with (COMPLETED)
+taeniopygia_guttata,T. guttata,heldout,1.232135591,tetrimmer,71.42713666666668,4.541111111111111,work/heldout_v10/taeniopygia_guttata/out_with
+taeniopygia_guttata,T. guttata,heldout,1.232135591,library_other,1.4368167555555555,0.4937788888888889,work/heldout_v10/taeniopygia_guttata/out_with
+mus_musculus,M. musculus,heldout,2.728222451,earlgrey,1445.4784555555557,70.7388888888889,work/heldout_v9/mus_musculus/out_with (CACHED)
+mus_musculus,M. musculus,heldout,2.728222451,hite,511.28486000000004,42.005,work/heldout_v9/mus_musculus/out_with (CACHED)
+mus_musculus,M. musculus,heldout,2.728222451,tetrimmer,300.75654833333334,14.010833333333334,work/heldout_v10/mus_musculus/out_with
+mus_musculus,M. musculus,heldout,2.728222451,library_other,17.946413698055554,3.2730908333333333,work/heldout_v10/mus_musculus/out_with
+danio_rerio,D. rerio,heldout,1.679203469,earlgrey,741.2725566666667,41.90111111111111,work/heldout_v9/danio_rerio/out_with (COMPLETED)
+danio_rerio,D. rerio,heldout,1.679203469,hite,361.3128263888889,43.92861111111111,work/heldout_v9/danio_rerio/out_with (COMPLETED)
+danio_rerio,D. rerio,heldout,1.679203469,tetrimmer,640.7037899999999,36.99,work/heldout_v10/danio_rerio/out_with
+danio_rerio,D. rerio,heldout,1.679203469,library_other,32.06236055777778,8.530258611111112,work/heldout_v10/danio_rerio/out_with
+blumeria_hordei,B. hordei,heldout,0.124489486,earlgrey,41.2269,3.3,work/heldout_v9/blumeria_hordei/out_with (CACHED)
+blumeria_hordei,B. hordei,heldout,0.124489486,hite,26.400123333333333,2.8405555555555555,work/heldout_v9/blumeria_hordei/out_with (CACHED)
+blumeria_hordei,B. hordei,heldout,0.124489486,tetrimmer,51.82751499999999,5.4475,work/heldout_v10/blumeria_hordei/out_with
+blumeria_hordei,B. hordei,heldout,0.124489486,library_other,3.5203889736111114,2.354503611111111,work/heldout_v10/blumeria_hordei/out_with
+ectocarpus_sp7,Ectocarpus sp. 7,heldout,0.195781519,earlgrey,112.60098500000001,7.8775,work/heldout_v9/ectocarpus_sp7/out_with (CACHED)
+ectocarpus_sp7,Ectocarpus sp. 7,heldout,0.195781519,hite,12.959022222222224,1.1472222222222221,work/heldout_v9/ectocarpus_sp7/out_with (CACHED)
+ectocarpus_sp7,Ectocarpus sp. 7,heldout,0.195781519,tetrimmer,47.96484000000001,5.767777777777778,work/heldout_v10/ectocarpus_sp7/out_with
+ectocarpus_sp7,Ectocarpus sp. 7,heldout,0.195781519,library_other,1.9995381286111111,1.1648877777777777,work/heldout_v10/ectocarpus_sp7/out_with

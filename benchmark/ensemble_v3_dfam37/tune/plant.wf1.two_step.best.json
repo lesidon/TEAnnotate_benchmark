@@ -1,0 +1,29 @@
+{
+ "objective": "weighted_f1",
+ "order": {
+  "method": "weighted",
+  "subset": [
+   "teclass2",
+   "create",
+   "neuralte",
+   "terrier"
+  ],
+  "weights": {
+   "teclass2": 1.5,
+   "create": 1.0,
+   "neuralte": 2.0,
+   "terrier": 2.0
+  },
+  "min_frac": 0.3,
+  "min_agree": 1
+ },
+ "superfamily": {
+  "weights": {
+   "teclass2": 1.0,
+   "create": 1.0,
+   "neuralte": 3.0,
+   "terrier": 1.0
+  },
+  "frac": 0.5
+ }
+}

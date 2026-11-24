@@ -1,0 +1,44 @@
+# Per-tool Apptainer image: Terrier (PyTorch/corgi repeat classifier, `bio-terrier`).
+# Build from the REPO ROOT:  apptainer build --fakeroot teannotate-terrier.sif containers/dl-classifiers/terrier.def
+# No repo to clone; model weights auto-download on first run and are baked here.
+Bootstrap: docker
+From: mambaorg/micromamba:1.5.8
+
+%files
+    assets/environments/terrier.yml /opt/env.yml
+
+%post
+    set -eu
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    export PATH=/opt/conda/bin:/bin:/usr/bin:$PATH
+    export XDG_CACHE_HOME=/opt/cache TORCH_HOME=/opt/cache/torch HF_HOME=/opt/cache/hf
+    export CONDARC=/opt/conda/.condarc
+    mkdir -p /opt/cache
+    printf 'remote_max_retries: 5\nremote_backoff_factor: 2\n' > /opt/conda/.condarc
+
+    # procps-ng supplies `ps`, which Nextflow calls to collect per-task metrics;
+    # it installs into /opt/conda/bin (already first on PATH via %environment).
+    micromamba install -y -n base -c conda-forge procps-ng
+    micromamba create -y -n terrier -c conda-forge -f /opt/env.yml
+    micromamba clean -ay
+    # click<8.2: torchapp's pinned typer breaks on Click >= 8.2 (Context has no
+    # `_param_default_explicit`), which aborts `terrier` at CLI-parse time.
+    micromamba run -n terrier pip install --no-cache-dir bio-terrier "click<8.2"
+    micromamba run -n terrier terrier --help >/dev/null
+
+    # Trigger the weight download now so it is baked under $XDG_CACHE_HOME/$TORCH_HOME
+    # (best-effort: the download happens at model-load, before inference). The seed run
+    # must SUCCEED for the weights to bake — check the CSV was written.
+    micromamba run -n terrier python -c "import random; random.seed(0); print('>seed'); print(''.join(random.choice('ACGT') for _ in range(600)))" > /opt/seed.fa
+    micromamba run -n terrier terrier --input /opt/seed.fa --output-csv /opt/seed.csv || true
+    [ -s /opt/seed.csv ] && echo "Terrier weights baked OK" || echo "WARN: Terrier seed run produced no CSV; weights may not be baked"
+    rm -f /opt/seed.fa /opt/seed.csv
+    chmod -R a+rX /opt
+
+%environment
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    export PATH=/opt/conda/bin:/bin:/usr/bin:$PATH
+    export XDG_CACHE_HOME=/opt/cache TORCH_HOME=/opt/cache/torch HF_HOME=/opt/cache/hf
+
+%labels
+    Tool Terrier

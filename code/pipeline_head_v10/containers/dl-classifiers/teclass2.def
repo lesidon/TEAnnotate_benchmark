@@ -1,0 +1,41 @@
+# Per-tool Apptainer image: TEclass2 (Transformer TE classifier).
+# Build from the REPO ROOT:  apptainer build --fakeroot teannotate-teclass2.sif containers/dl-classifiers/teclass2.def
+# Env-var paths match the combined image, so pipeline modules work with either.
+Bootstrap: docker
+From: mambaorg/micromamba:1.5.8
+
+%files
+    assets/environments/teclass2.yml /opt/env.yml
+
+%post
+    set -eu
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    export PATH=/opt/conda/bin:/bin:/usr/bin:$PATH
+    export XDG_CACHE_HOME=/opt/cache CONDARC=/opt/conda/.condarc
+    mkdir -p /opt/cache
+    printf 'remote_max_retries: 5\nremote_backoff_factor: 2\n' > /opt/conda/.condarc
+
+    # procps-ng supplies `ps`, which Nextflow calls to collect per-task metrics;
+    # it installs into /opt/conda/bin (already first on PATH via %environment).
+    micromamba install -y -n base -c conda-forge git curl tar gzip procps-ng
+    micromamba create -y -n teclass2 -f /opt/env.yml
+    micromamba clean -ay
+    micromamba run -n teclass2 pip install --no-cache-dir \
+        "torch<1.13" torchvision tokenizers "transformers==4.17" accelerate
+    micromamba run -n teclass2 python -c "import torch, transformers, numpy"
+
+    git clone https://github.com/IOB-Muenster/TEclass2.git /opt/teclass2
+    mkdir -p /opt/models/teclass2
+    curl -fL "https://bioinformatics.uni-muenster.de/tools/teclass2/models/teclass2-models.tgz" -o /opt/tc2.tgz
+    tar -xzf /opt/tc2.tgz -C /opt/models/teclass2 && rm /opt/tc2.tgz
+    chmod -R a+rX /opt
+
+%environment
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    export PATH=/opt/conda/bin:/bin:/usr/bin:$PATH
+    export XDG_CACHE_HOME=/opt/cache
+    export TEANNOTATE_TECLASS2=/opt/teclass2
+    export TEANNOTATE_TECLASS2_MODEL=/opt/models/teclass2
+
+%labels
+    Tool TEclass2

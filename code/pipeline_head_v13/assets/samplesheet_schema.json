@@ -1,0 +1,33 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/nf-core/teannotate/main/assets/samplesheet_schema.json",
+    "title": "nf-core/teannotate samplesheet schema",
+    "description": "Schema for the input samplesheet CSV used by nf-core/teannotate",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "sample": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_\\-\\.]+$",
+                "errorMessage": "Sample name must contain only alphanumeric characters, underscores, hyphens, or dots.",
+                "meta": ["id"]
+            },
+            "genome": {
+                "type": "string",
+                "pattern": "^\\S+\\.(fa|fasta|fna)(\\.gz)?$",
+                "errorMessage": "Genome must be a path to a FASTA file (.fa, .fasta, .fna, optionally .gz).",
+                "help_text": "Absolute, or relative to the launch directory or to the samplesheet's own directory (checked in that order). The pipeline stops if the file is not found."
+            },
+            "organism_type": {
+                "type": "string",
+                "enum": ["plant", "animal", "fungus"],
+                "default": "animal",
+                "errorMessage": "organism_type must be one of: plant, animal, fungus.",
+                "meta": ["organism_type"]
+            }
+        },
+        "required": ["sample", "genome"],
+        "uniqueKeys": [["sample"]]
+    }
+}

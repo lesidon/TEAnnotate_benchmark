@@ -1,0 +1,75 @@
+#!/bin/bash
+# tt_feed.sh <task_dir> <chunk_root> <job name> <sbatch options for one chunk...> - the feeder of
+# tt_submit.sh (benchmark only, see tt_chunks.py). Every 5 min: each chunk of <chunk_root> that is
+# neither complete nor queued gets its own Slurm job <job name>_cXX (tt_run_chunk.sh), as long as
+# at most TT_PARALLEL chunk jobs are queued and the user's jobs in the chunk partition stay
+# TT_SUBMIT_SPARE below the per-user submit limit of its QOS (htc: 16, each array task counted).
+# A chunk job that stopped early (time limit, node failure) is simply submitted again: the chunk
+# continues with --continue_analysis. Exit 0 once every chunk is complete; exit 1 when the chunks
+# left have each stopped TT_MAX_TRIES times without completing (read their logs).
+#   TT_FEED_ONCE=1  one feeding round, exit 0        TT_FEED_DRY=1  print the sbatch calls only
+set -o pipefail
+X=/trinity/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/tetrimmer_chunks
+T=$1; R=$2; J=$3; shift 3; OPTS=("$@")
+P=${TT_PARALLEL:-5}; TRIES=${TT_MAX_TRIES:-5}; SPARE=${TT_SUBMIT_SPARE:-2}
+for v in $(compgen -e | grep -E '^SLURM_'); do unset $v; done     # submit as from a login shell
+PART=htc
+for ((k = 0; k < ${#OPTS[@]}; k++)); do
+    case ${OPTS[k]} in
+        -p|--partition) PART=${OPTS[k+1]} ;;
+        --partition=*)  PART=${OPTS[k]#*=} ;;
+        -p?*)           PART=${OPTS[k]#-p} ;;
+    esac
+done
+QOS=$(scontrol show partition $PART -o | grep -oE ' QoS=[^ ]+' | cut -d= -f2)
+LIM=$(sacctmgr -n -P show qos "$QOS" format=maxsubmitpu 2>/dev/null | head -n 1)
+[[ $LIM =~ ^[0-9]+$ ]] || LIM=100000
+RUN=(); [[ -n $TT_THREADS ]] && RUN=(TT_THREADS=$TT_THREADS)
+mkdir -p $R/logs $R/feed
+log() { echo "[$(date '+%F %T')] $*"; }
+complete() {  # every input completed or failed in 2+ runs (the rule of tt_run_chunk.sh and merge)
+    /beegfs/home/leonid.sidorov/envs/teannot_bench/bin/python $X/tt_chunks.py check $1 > /dev/null
+}
+log "feeding $R: partition $PART (QOS ${QOS:-none}, submit limit $LIM, spare $SPARE), $P chunk jobs at a time, up to $TRIES tries; ${OPTS[*]} ${RUN[*]}"
+declare -A told
+while :; do
+    # queue first, completeness second: a chunk job ending in between is then seen as queued
+    if ! Q=$(squeue -u $USER -h -r -o '%j %P'); then
+        log "squeue failed, retrying in 1 min"; sleep 60; continue
+    fi
+    todo=(); for d in $(ls -d $R/chunk_* | sort); do complete $d || todo+=($d); done
+    if (( ${#todo[@]} == 0 )); then
+        log "all $(ls -d $R/chunk_* | wc -l) chunks complete"; exit 0
+    fi
+    mine=$(grep -cE "^${J}_c[0-9]+ $PART\$" <<< "$Q")     # chunk jobs in this partition
+    used=$(awk -v p=$PART '$2 == p' <<< "$Q" | wc -l)
+    queued=0; stuck=0
+    for d in "${todo[@]}"; do
+        i=${d##*_}; name=${J}_c$i
+        if grep -q "^$name " <<< "$Q"; then queued=$((queued + 1)); continue; fi
+        t=$(cat $R/feed/c$i.tries 2>/dev/null || echo 0)
+        if (( t >= TRIES )); then
+            stuck=$((stuck + 1))
+            [[ -n ${told[$i]} ]] || { log "chunk $i stopped $t times without completing - not submitted again"; told[$i]=1; }
+            continue
+        fi
+        (( mine < P && used < LIM - SPARE )) || continue
+        if [[ -n $TT_FEED_DRY ]]; then
+            log "DRY: sbatch --parsable ${OPTS[*]} -J $name -o $R/logs/${name}_%j.out --wrap \"${RUN[*]} bash $X/tt_run_chunk.sh $T $d\""
+            mine=$((mine + 1)); used=$((used + 1)); continue
+        fi
+        if id=$(sbatch --parsable "${OPTS[@]}" -J $name -o $R/logs/${name}_%j.out \
+                --wrap "${RUN[*]} bash $X/tt_run_chunk.sh $T $d" 2>> $R/feed/sbatch.err); then
+            echo $((t + 1)) > $R/feed/c$i.tries
+            mine=$((mine + 1)); used=$((used + 1)); queued=$((queued + 1))
+            log "chunk $i -> job $id (try $((t + 1)))"
+        else
+            log "sbatch refused chunk $i: $(tail -n 1 $R/feed/sbatch.err)"; break
+        fi
+    done
+    if (( queued == 0 && stuck == ${#todo[@]} )); then
+        log "$stuck chunk(s) left, each stopped $TRIES times: giving up"; exit 1
+    fi
+    [[ -n $TT_FEED_ONCE ]] && exit 0
+    sleep ${TT_FEED_SLEEP:-300}
+done

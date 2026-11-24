@@ -1,0 +1,39 @@
+# Genome manifest for the whole-pipeline TE-annotation benchmark.
+# Tab-separated. Lines starting with '#' and blank lines are ignored.
+#
+# columns:
+#   kingdom        plant | animal | fungus
+#   species_key    short slug (no spaces); drives all output paths
+#   display_name   human-readable label for plots (spaces OK)
+#   accession      NCBI RefSeq/GenBank assembly accession (downloaded by 01)
+#   organism_type  pipeline --organism_type: plant | animal | fungus
+#   scoring        gold  -> lib-test.py against a curated library
+#                  proxy -> coverage% + pairwise Jaccard concordance + LAI
+#   curated_lib    token resolved by 02_fetch_curated_libs.sh:
+#                  rice|maize|arabidopsis (EDTA repo), dmel (RepBase),
+#                  human|danio|septoria|zymoseptoria (Dfam clade); or '-' for proxy.
+#
+# NB rows are addressed BY POSITION by submit_benchmark.slurm (--array index =
+# row order here, comments/blanks skipped). APPEND new genomes at the end;
+# inserting in the middle silently re-points every array index after it.
+#
+# kingdom	species_key	display_name	accession	organism_type	scoring	curated_lib
+plant	arabidopsis_thaliana	Arabidopsis thaliana (TAIR10.1)	GCF_000001735.4	plant	gold	arabidopsis
+plant	oryza_sativa	Oryza sativa Nipponbare (IRGSP-1.0)	GCF_001433935.1	plant	gold	rice
+plant	zea_mays	Zea mays B73 (RefGen_v5)	GCF_902167145.1	plant	gold	maize
+animal	drosophila_melanogaster	Drosophila melanogaster (Release 6)	GCF_000001215.4	animal	gold	dmel
+animal	homo_sapiens	Homo sapiens (T2T-CHM13v2.0)	GCF_009914755.1	animal	gold	human
+animal	danio_rerio	Danio rerio (GRCz12tu)	GCA_049306965.1	animal	gold	danio
+fungus	saccharomyces_cerevisiae	Saccharomyces cerevisiae (R64)	GCF_000146045.2	fungus	proxy	-
+fungus	magnaporthe_oryzae	Magnaporthe oryzae 70-15 (MG8)	GCF_000002495.2	fungus	proxy	-
+fungus	paecilomyces_variotii	Paecilomyces variotii (Paevar1)	GCF_004022145.1	fungus	proxy	-
+fungus	septoria_linicola	Septoria linicola SE15195 (ASM2411488v1)	GCA_024114885.1	fungus	gold	septoria
+fungus	zymoseptoria_tritici	Zymoseptoria tritici IPO323 (MYCGR v2.0)	GCF_000219625.1	fungus	gold	zymoseptoria
+animal	caenorhabditis_elegans	Caenorhabditis elegans (WBcel235)	GCF_000002985.6	animal	gold	repbase_6239
+animal	caenorhabditis_briggsae	Caenorhabditis briggsae (CB4)	GCF_000004555.2	animal	gold	repbase_6238
+fungus	blumeria_hordei	Blumeria hordei DH14 (BGH_DH14_v4)	GCA_900239735.1	fungus	gold	qian2023
+plant	chlamydomonas_reinhardtii	Chlamydomonas reinhardtii (v5.5)	GCF_000002595.2	plant	gold	craig
+stramenopile	ectocarpus_sp7	Ectocarpus sp. 7 Ec32 (instaGRAAL)	GCA_004764655.1	animal	gold	dinatale2025
+animal	gallus_gallus	Gallus gallus (GRCg6a)	GCF_000002315.5	animal	gold	repbase_9031
+animal	taeniopygia_guttata	Taeniopygia guttata (taeGut3.2.4)	GCF_000151805.1	animal	gold	repbase_59729
+animal	mus_musculus	Mus musculus (GRCm39)	GCF_000001635.27	animal	gold	repbase_10090

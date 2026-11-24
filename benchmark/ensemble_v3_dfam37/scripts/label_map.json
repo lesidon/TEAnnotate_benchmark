@@ -1,0 +1,9 @@
+{
+  "superfamily": {
+    "pifharbinger": ["PIF-Harbinger", "DNA"],
+    "tc1mariner": ["Tc1-Mariner", "DNA"],
+    "l2": ["CR1", "LINE"],
+    "jockey": ["I", "LINE"]
+  }
+}
+

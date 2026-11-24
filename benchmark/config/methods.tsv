@@ -1,0 +1,17 @@
+# Method manifest — the annotators compared in the benchmark.
+# Tab-separated. Lines starting with '#' and blank lines are ignored.
+#
+# columns:
+#   method       output slug (drives libraries/<species>/<method>/)
+#   engine       dispatch key used by 04_run_tools.sh
+#   env_type     nextflow | singularity | conda
+#   env_ref      name of the env.sh variable (SIF/conda env) or 'main.nf'
+#   output_glob  filename pattern of the tool's raw consensus library
+#   note         short description (also printed in the report)
+#
+# method	engine	env_type	env_ref	output_glob	note
+pipeline	pipeline	nextflow	main.nf	*.classified_library.fa	Full nf-core/teannotate pipeline (de novo + dedup + TEtrimmer + DL ensemble)
+edta	edta	singularity	EDTA_SIF	*.mod.EDTA.TElib.fa	EDTA — plant-tuned de novo library builder
+earlgrey	earlgrey	conda	EARLGREY_ENV	*-families.fa	Earl Grey — general de novo (RepeatModeler2 + BEAT curation)
+hite	hite	singularity	HITE_SIF	confident_TE.cons.fa	HiTE — general de novo (full-length TE detection)
+heliano	heliano	conda	HELIANO_ENV	RC.representative.fa	HELIANO — Helitron-only (partial library; expected low genome-wide)

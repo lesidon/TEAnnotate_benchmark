@@ -1,0 +1,6 @@
+name: heliano
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - bioconda::heliano=1.3.1

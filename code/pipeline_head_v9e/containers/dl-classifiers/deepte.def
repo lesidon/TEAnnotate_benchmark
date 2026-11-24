@@ -1,0 +1,42 @@
+# Per-tool Apptainer image: DeepTE (organism-aware CNN TE classifier).
+# Build from the REPO ROOT:  apptainer build --fakeroot teannotate-deepte.sif containers/dl-classifiers/deepte.def
+Bootstrap: docker
+From: mambaorg/micromamba:1.5.8
+
+%files
+    assets/environments/deepte.yml /opt/env.yml
+
+%post
+    set -eu
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    export PATH=/opt/conda/bin:/bin:/usr/bin:$PATH
+    export XDG_CACHE_HOME=/opt/cache CONDARC=/opt/conda/.condarc
+    mkdir -p /opt/cache
+    printf 'remote_max_retries: 5\nremote_backoff_factor: 2\n' > /opt/conda/.condarc
+
+    # procps-ng supplies `ps`, which Nextflow calls to collect per-task metrics;
+    # it installs into /opt/conda/bin (already first on PATH via %environment).
+    micromamba install -y -n base -c conda-forge git curl tar gzip procps-ng
+    micromamba create -y -n deepte -f /opt/env.yml
+    micromamba clean -ay
+    # protobuf<3.20 is required for DeepTE's TF 2.2 (its *_pb2 code breaks with 4.x).
+    micromamba run -n deepte pip install --no-cache-dir \
+        "numpy==1.18.5" "tensorflow==2.2.0" "keras==2.3.1" \
+        "scikit-learn==0.24.2" "biopython==1.79" "protobuf==3.19.6"
+    micromamba run -n deepte python -c "import numpy, tensorflow, keras"
+
+    # Source only — the organism-specific model is NOT baked in. The pipeline's
+    # DEEPTE_FETCH_MODEL downloads just the group the sample needs into the host
+    # cache, which Nextflow bind-mounts in at runtime. This keeps the image small
+    # and the build fast (no multi-GB cyVerse pull).
+    git clone https://github.com/LiLabAtVT/DeepTE.git /opt/deepte
+    chmod -R a+rX /opt
+
+%environment
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    export PATH=/opt/conda/bin:/bin:/usr/bin:$PATH
+    export XDG_CACHE_HOME=/opt/cache
+    export TEANNOTATE_DEEPTE=/opt/deepte
+
+%labels
+    Tool DeepTE

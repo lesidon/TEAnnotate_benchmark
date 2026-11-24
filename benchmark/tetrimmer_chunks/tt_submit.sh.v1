@@ -1,0 +1,22 @@
+#!/bin/bash
+# tt_submit.sh <task_dir> <chunk_root> <job name> [sbatch options...] - one array task per
+# chunk of <chunk_root> that is not complete yet (run again after a time-out: unfinished
+# chunks continue where they stopped). Default: htc, 36 CPUs, 150 G, 1 day, 5 at a time.
+X=/trinity/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/tetrimmer_chunks
+T=$1; R=$2; J=$3; shift 3
+IDX=()
+for d in $(ls -d $R/chunk_* | sort); do
+    i=$((10#${d##*_}))
+    o=$(ls -d $d/*_tetrimmer 2>/dev/null | head -n 1)
+    if [[ -n $o && -s $o/summary.txt ]]; then
+        n=$(ls $o/Single_fasta_files | wc -l); c=$(tail -n +2 $o/summary.txt | cut -d, -f1 | sort -u | wc -l)
+        (( n > 0 && c == n )) && continue
+    fi
+    IDX+=($i)
+done
+(( ${#IDX[@]} )) || { echo "all chunks of $R are complete"; exit 0; }
+OPTS=("$@"); (( ${#OPTS[@]} )) || OPTS=(-p htc -c 36 --mem=150G -t 1-00:00:00)
+A=$(IFS=,; echo "${IDX[*]}")
+mkdir -p $R/logs
+sbatch --parsable --array=$A%${TT_PARALLEL:-5} "${OPTS[@]}" -J $J -o $R/logs/%x_%a_%A.out \
+    --wrap "bash $X/tt_run_chunk.sh $T \$(printf '$R/chunk_%02d' \$SLURM_ARRAY_TASK_ID)"

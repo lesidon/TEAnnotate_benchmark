@@ -1,0 +1,10 @@
+name: nf-teannotate-tetrimmer
+# TEtrimmer (qjiangzhao/TEtrimmer) — automates manual curation of TE consensi by
+# BLASTing each against the genome, extending, MSA-cleaning and boundary-trimming.
+# conda-forge must precede bioconda for the solver.
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - tetrimmer

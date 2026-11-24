@@ -1,0 +1,16 @@
+species,display,role,route,genome_bp,genome_mb,n_seqs,ref_families_famlevel,ref_records_fasta
+arabidopsis_thaliana,A. thaliana,dev,plant,119668634,119.7,7,505,505
+oryza_sativa,O. sativa,dev,plant,374422835,374.4,58,2627,2627
+drosophila_melanogaster,D. melanogaster,dev,animal,143726002,143.7,1870,127,127
+caenorhabditis_elegans,C. elegans,dev,animal,100286401,100.3,7,187,187
+zymoseptoria_tritici,Z. tritici,dev,fungus,39686251,39.7,21,324,324
+septoria_linicola,S. linicola,dev,fungus,39589424,39.6,17,43,43
+chlamydomonas_reinhardtii,C. reinhardtii,heldout,plant,111098438,111.1,53,322,322
+zea_mays,Z. mays,heldout,plant,2182786008,2182.8,687,1477,1477
+caenorhabditis_briggsae,C. briggsae,heldout,animal,108384165,108.4,367,233,233
+gallus_gallus,G. gallus,heldout,animal,1065365425,1065.4,464,232,232
+taeniopygia_guttata,T. guttata,heldout,animal,1232135591,1232.1,37096,416,416
+mus_musculus,M. musculus,heldout,animal,2728222451,2728.2,61,1243,1243
+danio_rerio,D. rerio,heldout,animal,1679203469,1679.2,1923,1740,1740
+blumeria_hordei,B. hordei,heldout,fungus,124489486,124.5,318,353,353
+ectocarpus_sp7,Ectocarpus sp. 7,heldout,animal,195781519,195.8,793,628,628

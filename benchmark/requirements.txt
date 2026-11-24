@@ -1,0 +1,7 @@
+# Python deps for the scoring/aggregation/plotting scripts (Python >= 3.9).
+# The heavy annotators (EDTA, Earl Grey, HiTE, HELIANO, RepeatMasker, LTR_retriever,
+# lib-test.py) run in their own containers/conda envs — see env.sh — and are NOT
+# listed here. Interval math in proxy_metrics.py is pure-python (no bedtools).
+pandas>=1.3
+numpy>=1.21
+matplotlib>=3.5

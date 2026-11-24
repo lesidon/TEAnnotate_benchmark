@@ -1,0 +1,1 @@
+modules/local/tetrimmer/main.nf: --tetrimmer_precomputed (tetrimmer_chunks/patch_module.py, 2026-11-04): finish a chunked TEtrimmer run with --continue_analysis. Benchmark only; original in main.nf.pre_ttchunks.

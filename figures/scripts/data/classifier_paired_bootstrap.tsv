@@ -1,0 +1,7 @@
+kingdom	level	n_test	n_clusters	best_single	vote_wf1	single_wf1	delta	ci_lo	ci_hi	frac_boot_delta_le0
+plant	order	4907	2635	NeuralTE	0.964688	0.946040	0.018648	0.0134	0.0242	0
+plant	superfamily	4862	2599	NeuralTE	0.941739	0.938492	0.003248	-0.0008	0.0074	0.0625
+animal	order	10362	5905	Terrier	0.890456	0.850962	0.039494	0.0336	0.0461	0
+animal	superfamily	9553	5464	Terrier	0.889833	0.874731	0.015103	0.0102	0.0206	0
+fungi	order	18642	13555	NeuralTE	0.917704	0.886883	0.030822	0.0271	0.0347	0
+fungi	superfamily	16128	11589	NeuralTE	0.912994	0.903599	0.009396	0.0066	0.0121	0

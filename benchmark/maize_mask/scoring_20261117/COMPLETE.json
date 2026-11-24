@@ -1,0 +1,8 @@
+{
+  "completed_at": "2026-11-22T14:11:03.575371",
+  "results_sha256": {
+    "/beegfs/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/edta_manual_bench/results/Zea_mays_bench_edta_manual.csv": "10fd5a8a265f89640ac39fd0a8f571b92ffa622ec38bd7cee7747add6ab3f9d3",
+    "/beegfs/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/edta_manual_bench/results/Zea_mays_bench_harmonised.csv": "595285cb23277a3f0b3378ed4ffdff1c1ad517a5d5a272964b3e367af54b4263",
+    "/beegfs/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/edta_manual_bench/results/Zea_mays_family_level.csv": "5dac3f37c2c894352b24846d1188b5d3911ef49b032e7982aee58a59ffb46c69"
+  }
+}

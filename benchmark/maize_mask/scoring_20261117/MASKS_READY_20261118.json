@@ -1,0 +1,41 @@
+{
+  "status": "ALL_MASKS_VERIFIED",
+  "completed_at": "2026-11-22T10:58:00.372998+00:00",
+  "libraries": {
+    "reference": {
+      "source": "/beegfs/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/maize_mask/libs/reference.fa",
+      "original": "/trinity/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/curated/zea_mays/zea_mays.curated.lib.fa",
+      "sha256": "4173cec5fea136ae8c9db3765e33ffa5c10d4fa6029f5d81e56eb573a4641c60"
+    },
+    "earlgrey": {
+      "source": "/beegfs/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/maize_mask/libs/earlgrey.fa",
+      "original": "/trinity/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/libraries/zea_mays/earlgrey/earlgrey_library.fa",
+      "sha256": "c02051166a9cbb9c656446ba320c749918be2d93b1bdc0c99c898d2d4399931e"
+    },
+    "hite": {
+      "source": "/beegfs/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/maize_mask/libs/hite.fa",
+      "original": "/trinity/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/libraries/zea_mays/hite/hite_library.fa",
+      "sha256": "a9f0f53020f4dcc4dc345403f661428e70f8f0bd78d38724741a6118a41636c9"
+    },
+    "teannotate_wo_v13": {
+      "source": "/beegfs/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/maize_mask/libs/teannotate_wo_v13.fa",
+      "original": "/trinity/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/libraries/zea_mays/pipeline_wo_tetrimmer_v13/pipeline_library.fa",
+      "sha256": "8c6530066a914a889211e25366b3d5fadc9eb89ee57f14324e086da9a5b7acb6"
+    },
+    "teannotate_v13": {
+      "source": "/beegfs/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/maize_mask/libs/teannotate_v13.fa",
+      "original": "/trinity/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/libraries/zea_mays/pipeline_v13/pipeline_library.fa",
+      "sha256": "ff992502956da0c92705b578566871ba27feda8f859b9e8c57f3303f945dbc09"
+    },
+    "edta2": {
+      "source": "/beegfs/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/maize_mask/libs/edta2.fa",
+      "original": "/trinity/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/libraries/zea_mays/edta2/edta2_library.fa",
+      "sha256": "39ac5fce80964386895e2b760ae0ae41a95b36955da99fa6a0951075f2636cf4"
+    },
+    "heliano": {
+      "source": "/beegfs/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/maize_mask/libs/heliano.fa",
+      "original": "/trinity/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/libraries/zea_mays/heliano/heliano_library.fa",
+      "sha256": "ca1e670302bac91e51ed1292383fb3c0634b65c72410d3e24c799d6e3daf7a7c"
+    }
+  }
+}

@@ -1,0 +1,43 @@
+# Per-tool Apptainer image: NeuralTE (CNN superfamily TE classifier).
+# Build from the REPO ROOT:  apptainer build --fakeroot teannotate-neuralte.sif containers/dl-classifiers/neuralte.def
+# Heaviest env (TF/Keras 2.6 + RepeatMasker + rmblast); the model ships in the repo.
+Bootstrap: docker
+From: mambaorg/micromamba:1.5.8
+
+%files
+    assets/environments/neuralte.yml /opt/env.yml
+
+%post
+    set -eu
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    export PATH=/opt/conda/bin:/bin:/usr/bin:$PATH
+    export XDG_CACHE_HOME=/opt/cache CONDARC=/opt/conda/.condarc
+    mkdir -p /opt/cache
+    printf 'remote_max_retries: 5\nremote_backoff_factor: 2\n' > /opt/conda/.condarc
+
+    # procps-ng supplies `ps`, which Nextflow calls to collect per-task metrics;
+    # it installs into /opt/conda/bin (already first on PATH via %environment).
+    micromamba install -y -n base -c conda-forge git curl tar gzip procps-ng
+    micromamba create -y -n neuralte -f /opt/env.yml
+    micromamba clean -ay
+    # Explicit pip (conda only provides python + RepeatMasker + rmblast).
+    # protobuf<3.20 for TF 2.6; h5py 3.1 for Keras .h5 loading.
+    micromamba run -n neuralte pip install --no-cache-dir \
+        "numpy==1.19.5" "tensorflow==2.6.0" "keras==2.6.0" "protobuf==3.19.6" \
+        "h5py==3.1.0" "scikit-learn==1.2.0" "biopython==1.78" \
+        "seaborn==0.11.2" "matplotlib==3.5.3" openpyxl
+    micromamba run -n neuralte python -c "import tensorflow, keras, Bio, sklearn"
+
+    # NeuralTE's pretrained model ships in the repo (models/NeuralTE_model.h5).
+    git clone https://github.com/CSU-KangHu/NeuralTE.git /opt/neuralte
+    chmod -R a+rX /opt
+
+%environment
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    export PATH=/opt/conda/bin:/bin:/usr/bin:$PATH
+    export XDG_CACHE_HOME=/opt/cache
+    export TEANNOTATE_NEURALTE=/opt/neuralte
+    export TEANNOTATE_NEURALTE_MODEL=/opt/neuralte/models/NeuralTE_model.h5
+
+%labels
+    Tool NeuralTE

@@ -1,0 +1,2 @@
+sample,genome,organism_type
+test_ztri_chr21,../tests/test_data/zymoseptoria_tritici_chr21.fa.gz,fungus

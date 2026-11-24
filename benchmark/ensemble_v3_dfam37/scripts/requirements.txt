@@ -1,0 +1,25 @@
+# teannotate classification-benchmark suite
+# Tested with Python >= 3.9
+pandas>=1.3
+numpy>=1.21
+scikit-learn>=1.0
+scipy>=1.7          # Friedman test in ensemble_compare.py
+biopython>=1.79
+matplotlib>=3.4
+# Optional: xgboost enables the stacking meta-classifier in ensemble_compare.py
+# (falls back to sklearn HistGradientBoosting if absent).
+xgboost>=1.6; python_version >= "3.8"
+
+# panteon_partitioner.py resolves species->kingdom from the PanTEon metadata CSV
+# (--metadata, no extra deps). The packages below are only for the *fallback*
+# taxonomy backends, needed only if some species are missing from the metadata:
+#     taxopy   -- reads a local NCBI taxdump (offline, HPC-friendly)
+#     ete3     -- NCBITaxa, downloads its own taxonomy db on first use
+# taxopy>=0.12    # optional fallback (uncomment to enable --taxdump)
+# ete3>=3.1       # optional fallback (uncomment to enable --ete3)
+
+# External (non-pip) tools:
+#   MMseqs2 (required by leakage_filter.py)
+#     ->  conda install -c bioconda mmseqs2   (or a static binary on PATH)
+#   NCBI taxdump (only for the optional panteon_partitioner.py --taxdump fallback)
+#     ->  wget https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz && tar xf taxdump.tar.gz

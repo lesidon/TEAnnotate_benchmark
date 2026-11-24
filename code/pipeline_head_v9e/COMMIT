@@ -1,0 +1,4 @@
+3ffb6ae + modules/local/edta/main.nf from the EDTA seq-ID fix (16d03c3 + zcat fix)
+16bcdbb EDTA module applied in place on 2026-10-15 (TIR-Learner int cast; legit-empty class keeps the run, rice substitute removed)
+2026-10-19: TIR-Learner swifter-in-pool fix applied in place (plain pandas apply in get_fasta_pieces_single_seqid_SeqIO)
+2026-10-20: EDTA rice check fix applied in place (only a logged '0 bp' result is a real empty class; TElib found at maxdepth 1)

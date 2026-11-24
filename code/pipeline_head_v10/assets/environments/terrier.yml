@@ -1,0 +1,17 @@
+# Terrier (rbturnbull/terrier; pip package `bio-terrier`) — a PyTorch/corgi-based
+# repeat classifier that outputs RepeatMasker-schema labels directly. Conda provides
+# only Python; torch + the package come via pip. Model weights auto-download on first
+# run, so on the offline HPC node Terrier must run from the DL container (the weights
+# are pre-fetched at image build time). NOT `terrier` on PyPI — that is unrelated.
+name: terrier
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      - bio-terrier
+      # torchapp pins an older typer that breaks on Click >= 8.2 (Context has no
+      # `_param_default_explicit`) -> AttributeError at CLI parse. Pin Click < 8.2.
+      - click<8.2

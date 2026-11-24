@@ -1,0 +1,4 @@
+sample,genome,organism_type
+stub_animal,../test_data/zymoseptoria_tritici_chr21.fa.gz,animal
+stub_plant,../test_data/zymoseptoria_tritici_chr21.fa.gz,plant
+stub_fungus,../test_data/zymoseptoria_tritici_chr21.fa.gz,fungus

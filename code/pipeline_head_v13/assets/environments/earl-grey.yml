@@ -1,0 +1,30 @@
+name: nf-teannotate-earlgrey
+# EarlGrey (TobyBaril/EarlGrey) automated TE curation/annotation pipeline.
+# Bioconda package is `earlgrey` (no hyphen); provides the `earlGrey` command.
+# conda-forge must precede bioconda for the solver (bioconda strict-priority order).
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - earlgrey=7.2.6
+  # PIN repeatmasker — do NOT let it float. earlgrey only requires `repeatmasker >=4.2.3`, but
+  # the two versions differ in a way that silently destroys classification:
+  #   4.2.3  bundles Dfam 3.9 partition 0 — share/RepeatMasker/Libraries/famdb/{dfam39_full.0.h5,
+  #          rmlib.config} — which is exactly the path EarlGrey's dfamCheck() hardcodes.
+  #   4.2.4  ships NO Dfam and has no post-link to fetch one (its `famdb` dep is only the tool,
+  #          not data), leaving Libraries/ empty. EarlGrey then aborts in dfamCheck, and
+  #          RepeatModeler's RepeatClassifier would have no library -> every family "Unknown".
+  # Unpinned, the same yml (same Nextflow env hash, since the hash is of this file's text)
+  # resolved to 4.2.3 on one cluster and 4.2.4 on another — that drift is what broke EarlGrey.
+  - repeatmasker=4.2.3
+  # PIN blast — do NOT let it float either. `blast` and `rmblast` BOTH install
+  # bin/makeblastdb, so whichever conda links last wins the path. repeatmodeler already
+  # requires rmblast >=2.14.1, but nothing constrained plain `blast`: it arrives only as a
+  # transitive dep (heliano / ltr_retriever) with a loose bound, and once repeatmasker was
+  # pinned the solver was free to satisfy it with blast=2.5.0 — whose ancient makeblastdb
+  # clobbered rmblast's. RepeatModeler's BuildDatabase then died on its own env:
+  #   makeblastdb -blastdb_version 4 ...  ->  Error: Unknown argument: "blastdb_version"
+  # (-blastdb_version only exists from BLAST+ 2.8.0, when BLASTDB v5 landed). Holding blast
+  # at/above rmblast's own version makes the clobber harmless whichever way it lands.
+  - blast>=2.14

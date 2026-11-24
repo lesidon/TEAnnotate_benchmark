@@ -1,0 +1,28 @@
+# Mirrors the upstream TEclass2 environment.yml (IOB-Muenster/TEclass2).
+# TEclass2 has no bioconda package or published container image, so the deps are
+# reproduced here and Nextflow builds the env on the (internet-connected) driver.
+# NOTE: the pip torch wheel's CUDA build depends on the host CUDA. If the GPU is
+# not used by torch at runtime, install a CUDA-matched torch<1.13 wheel for your
+# driver (e.g. via --extra-index-url https://download.pytorch.org/whl/cu113).
+name: teclass2
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.10
+  - numpy<2.0
+  - pandas<2.0
+  - scipy
+  - scikit-learn
+  - matplotlib
+  - biopython
+  - pyyaml
+  - tqdm
+  - tensorboardX
+  - pip
+  - pip:
+      - "torch<1.13"
+      - torchvision
+      - tokenizers
+      - "transformers==4.17"
+      - accelerate

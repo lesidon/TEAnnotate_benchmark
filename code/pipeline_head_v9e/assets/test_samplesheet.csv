@@ -1,0 +1,2 @@
+sample,genome,organism_type,gff
+test_ncra,/trinity/home/leonid.sidorov/tmp/nf-core-te-annotation/tests/test_data/strain_31.2_polished.fasta,fungus,/trinity/home/leonid.sidorov/tmp/nf-core-te-annotation/tests/test_data/braker.gtf

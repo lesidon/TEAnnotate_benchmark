@@ -1,0 +1,40 @@
+# Per-tool Apptainer image: CREATE (attention CNN+RNN TE classifier).
+# Build from the REPO ROOT:  apptainer build --fakeroot teannotate-create.sif containers/dl-classifiers/create.def
+Bootstrap: docker
+From: mambaorg/micromamba:1.5.8
+
+%files
+    assets/environments/create.yml /opt/env.yml
+
+%post
+    set -eu
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    export PATH=/opt/conda/bin:/bin:/usr/bin:$PATH
+    export XDG_CACHE_HOME=/opt/cache CONDARC=/opt/conda/.condarc
+    mkdir -p /opt/cache
+    printf 'remote_max_retries: 5\nremote_backoff_factor: 2\n' > /opt/conda/.condarc
+
+    # procps-ng supplies `ps`, which Nextflow calls to collect per-task metrics;
+    # it installs into /opt/conda/bin (already first on PATH via %environment).
+    micromamba install -y -n base -c conda-forge git curl tar gzip procps-ng
+    micromamba create -y -n create -f /opt/env.yml
+    micromamba clean -ay
+    micromamba run -n create pip install --no-cache-dir "tensorflow-gpu==2.4.0" gdown
+    micromamba run -n create python -c "import pandas, numpy, tensorflow"
+
+    git clone https://github.com/yangqi-cs/CREATE.git /opt/create
+    mkdir -p /opt/models/create
+    cd /opt/models/create
+    micromamba run -n create gdown "https://drive.google.com/uc?id=1OWzmD5sMM7kAJjKmq0LS3HibqzNVFThe" -O model.tar.gz
+    tar -xzf model.tar.gz && rm model.tar.gz
+    chmod -R a+rX /opt
+
+%environment
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    export PATH=/opt/conda/bin:/bin:/usr/bin:$PATH
+    export XDG_CACHE_HOME=/opt/cache
+    export TEANNOTATE_CREATE=/opt/create
+    export TEANNOTATE_CREATE_MODEL=/opt/models/create
+
+%labels
+    Tool CREATE

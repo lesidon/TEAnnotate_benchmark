@@ -1,0 +1,319 @@
+#!/usr/bin/env python3
+"""tt_chunks.py prepare|merge|status - TEtrimmer in chunks, outside the pipeline (benchmark only).
+
+A pipeline TETRIMMER task that cannot finish in its time limit is finished here: the input
+sequences its (killed) run did not complete are split into chunks, each chunk is curated by its
+own TEtrimmer run (tt_run_chunk.sh, a separate Slurm job), and the chunk outputs are merged back
+into a copy of the task's partial output directory. TEtrimmer handles every input sequence
+independently, so the merged directory is what one run would have written for the per-sequence
+part; the pipeline's TETRIMMER task then runs TEtrimmer --continue_analysis on it, which finds
+every sequence done and writes only TEtrimmer's final, library-wide outputs.
+
+  prepare <task_dir> <chunk_root> <n_chunks> [--test N]
+      chunk_root/chunk_XX/<library name> = the not-yet-completed input sequences, dealt out in
+      turn; --test N instead writes chunk_root/test/ with N sequences the task already completed
+      (to compare a chunked run with the task's own results).
+  merge <task_dir> <chunk_root>
+      chunk_root/merged/<output dir> = task output, minus the files of sequences it had not
+      completed, plus every chunk's output; checks that each input is completed exactly once.
+  status <chunk_root>
+      completed (+ failed) / total sequences per chunk.
+  check <chunk_dir>
+      exit 0 if every input of the chunk is completed or failed (see failed()), else 1.
+  resplit <task_dir> <chunk_root> <parts> [--dry]
+      split every chunk that was never started (only its input file, no queued job) into
+      <parts> new chunks numbered after the last one; the old dir moves to <chunk_root>/resplit/.
+
+A sequence TEtrimmer crashes on (an exception it catches and logs as "... error <name>" in
+Multiple_sequence_alignment/error_file.txt) gets no summary row: one TEtrimmer run logs it once and
+drops it. In chunks such a sequence is retried by --continue_analysis, so it counts as failed (done)
+once it has errored in at least two runs; a single error may be a killed run (out of memory, time
+limit). The pipeline task's --continue_analysis retries failed sequences once more, as one run would
+have tried them once; merged/failed_sequences.txt lists them.
+"""
+import collections, csv, os, re, shutil, subprocess, sys
+
+AGG_FASTA = ['TEtrimmer_consensus.fasta',
+             'Classification_and_deduplication/TEtrimmer_consensus_no_low_copy.fasta',
+             'Classification_and_deduplication/temp_TEtrimmer_classified_consensus.fasta',
+             'Classification_and_deduplication/temp_TEtrimmer_unknown_consensus.fasta']
+ERRORS = 'Multiple_sequence_alignment/error_file.txt'
+NOT_COPIED = set(AGG_FASTA) | {ERRORS, 'summary.txt', 'Sequence_name_mapping.txt', 'TEtrimmer.log'}
+PER_SEQ_DIRS = ['Multiple_sequence_alignment', 'TEtrimmer_for_proof_curation',
+                'Classification_and_deduplication']
+
+
+def task_args(task):
+    sh = open(os.path.join(task, '.command.sh')).read()
+    get = lambda o: re.search(rf'--{o}\s+(\S+)', sh).group(1)
+    return get('input_file'), get('genome_file'), get('output_dir')
+
+
+def fasta(path):
+    name, seq = None, []
+    for line in open(path):
+        if line.startswith('>'):
+            if name is not None:
+                yield name, ''.join(seq)
+            name, seq = line[1:].rstrip('\n'), []
+        else:
+            seq.append(line)
+    if name is not None:
+        yield name, ''.join(seq)
+
+
+def sanitized(header):
+    """TEtrimmer's own renaming (analyze.separate_sequences)."""
+    rid = header.split()[0]
+    if '#' in rid:
+        return rid.split('#')[0].replace('/', '_').replace(' ', '_').replace('-', '_') \
+            .replace(':', '_').replace('...', '_').replace('|', '_')
+    return rid.replace('/', '_').replace(' ', '_').replace('-', '_').replace(':', '_').replace('...', '_')
+
+
+def summary(out_dir):
+    p = os.path.join(out_dir, 'summary.txt')
+    if not os.path.exists(p):
+        return [], []
+    with open(p, newline='') as f:
+        r = csv.reader(f)
+        header = next(r, [])
+        return header, list(r)
+
+
+def completed(out_dir):
+    _, rows = summary(out_dir)
+    return {r[0] for r in rows}
+
+
+def inputs(out_dir):
+    d = os.path.join(out_dir, 'Single_fasta_files')
+    return {os.path.splitext(f)[0] for f in os.listdir(d)} if os.path.isdir(d) else set()
+
+
+def failed(out_dir, done=None):
+    """Inputs without a summary row that TEtrimmer logged an error for in at least two runs."""
+    done = completed(out_dir) if done is None else done
+    p = os.path.join(out_dir, ERRORS)
+    if not os.path.exists(p):
+        return set()
+    n = collections.Counter()     # "Boundary definition error <name>", "Error while grouping MSA: <name>"
+    for line in open(p, errors='replace'):
+        w = line.split()
+        if w and not line[0].isspace() and re.search(r'error', line, re.I):
+            n[w[-1].strip(':,.')] += 1
+    return {s for s in inputs(out_dir) - done if n[s] >= 2}
+
+
+def out_dir_of(chunk):
+    o = next((x for x in os.listdir(chunk) if x.endswith('_tetrimmer')), None)
+    return os.path.join(chunk, o) if o and os.path.isdir(os.path.join(chunk, o)) else None
+
+
+def check(chunk):
+    o = out_dir_of(chunk)
+    names = inputs(o) if o else set()
+    done = completed(o) & names if o else set()
+    fail = failed(o, done) if o else set()
+    ok = bool(names) and (done | fail) == names
+    print(f'{os.path.basename(chunk)}: {len(done)} completed + {len(fail)} failed / {len(names)}'
+          + (f'; failed: {" ".join(sorted(fail))}' if fail else ''))
+    return ok
+
+
+def prepare(task, root, n, test=0):
+    lib, _, out = task_args(task)
+    recs = list(fasta(os.path.join(task, lib)))
+    names = [sanitized(h) for h, _ in recs]
+    assert len(set(names)) == len(names), 'duplicate TEtrimmer names in the input library'
+    done = completed(os.path.join(task, out))
+    if test:
+        curated = {r[0] for r in summary(os.path.join(task, out))[1] if r[-1] == 'processed'}
+        pick = [(h, s) for (h, s), nm in zip(recs, names) if nm in curated]
+        pick = pick[::max(1, len(pick) // test)][:test]
+        d = os.path.join(root, 'test'); os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, lib), 'w') as f:
+            f.writelines(f'>{h}\n{s}' for h, s in pick)
+        print(f'test: {len(pick)} sequences the task already curated -> {d}/{lib}')
+        return
+    todo = [(h, s) for (h, s), nm in zip(recs, names) if nm not in done]
+    print(f'{len(recs)} input sequences, {len(done)} completed by the task, {len(todo)} to curate in {n} chunks')
+    for i in range(n):
+        d = os.path.join(root, f'chunk_{i:02d}'); os.makedirs(d, exist_ok=True)
+        part = todo[i::n]
+        with open(os.path.join(d, lib), 'w') as f:
+            f.writelines(f'>{h}\n{s}' for h, s in part)
+        print(f'  {d}: {len(part)}')
+
+
+def chunk_dirs(root):
+    return sorted(os.path.join(root, d) for d in os.listdir(root) if d.startswith('chunk_'))
+
+
+def status(root, out=None):
+    total_left = 0
+    for d in chunk_dirs(root):
+        lib = next(f for f in os.listdir(d) if f.endswith('.fa'))
+        n = sum(1 for _ in fasta(os.path.join(d, lib)))
+        o = out_dir_of(d)
+        c = len(completed(o)) if o else 0
+        f = len(failed(o)) if o else 0
+        total_left += n - c - f
+        print(f'{os.path.basename(d)}: {c}' + (f'+{f}f' if f else '') + f'/{n}')
+    print(f'left: {total_left}')
+    return total_left
+
+
+def resplit(task, root, parts, dry=False):
+    lib, _, _ = task_args(task)
+    queued = subprocess.run(['squeue', '-u', os.environ['USER'], '-h', '-o', '%j'],
+                            capture_output=True, text=True, check=True).stdout.split()
+    dirs = chunk_dirs(root)
+    nxt = max(int(d.rsplit('_', 1)[1]) for d in dirs) + 1
+    for d in dirs:
+        i = d.rsplit('_', 1)[1]
+        if sorted(os.listdir(d)) != [lib] or any(j.endswith(f'_c{i}') for j in queued) \
+                or os.path.exists(os.path.join(root, 'feed', f'c{i}.tries')):
+            continue        # started or queued: left as it is
+        recs = list(fasta(os.path.join(d, lib)))
+        made = []
+        for k in range(parts):
+            part = recs[k::parts]
+            nd = os.path.join(root, f'chunk_{nxt:02d}'); nxt += 1
+            made.append(f'{os.path.basename(nd)} ({len(part)})')
+            if not dry:
+                os.makedirs(nd)
+                with open(os.path.join(nd, lib), 'w') as f:
+                    f.writelines(f'>{h}\n{s}' for h, s in part)
+        if not dry:
+            os.makedirs(os.path.join(root, 'resplit'), exist_ok=True)
+            shutil.move(d, os.path.join(root, 'resplit', os.path.basename(d)))
+        print(f'{"DRY " if dry else ""}{os.path.basename(d)} ({len(recs)}) -> {", ".join(made)}')
+
+
+def kept_records(path, outnames):
+    """Consensus records of completed outputs only, last copy of a name kept: TEtrimmer writes a
+    record before the summary row, so a run killed (or resumed) mid-sequence leaves extras."""
+    recs = {}
+    for h, s in fasta(path):
+        nm = h.split()[0].split('#')[0]
+        if nm in outnames:
+            recs.pop(nm, None); recs[nm] = (h, s)
+    return list(recs.values())
+
+
+def owner(fname, names):
+    """Input sequence a per-sequence file belongs to: its longest name prefix ending at . _ or #."""
+    best = None
+    for m in re.finditer(r'[._#]', fname + '.'):
+        p = fname[:m.start()]
+        if p in names:
+            best = p
+    return best
+
+
+def merge(task, root):
+    lib, _, out = task_args(task)
+    src = os.path.join(task, out)
+    dst = os.path.join(root, 'merged', out)
+    if os.path.exists(dst):
+        shutil.rmtree(dst)
+    shutil.copytree(src, dst, symlinks=True)
+    names = {os.path.splitext(f)[0] for f in os.listdir(os.path.join(dst, 'Single_fasta_files'))}
+    header, rows = summary(dst)
+    done0 = {r[0] for r in rows}
+    outnames = {r[1] for r in rows}
+    # 1. sequences the killed run had started but not completed: drop their files and their
+    #    consensus records (TEtrimmer writes those before the summary row)
+    unfinished = names - done0
+    purged = 0
+    for sub in PER_SEQ_DIRS:
+        for base, _, files in os.walk(os.path.join(dst, sub)):
+            for f in files:
+                rel = os.path.relpath(os.path.join(base, f), dst)
+                if rel in NOT_COPIED:
+                    continue
+                if owner(f, names) in unfinished:
+                    os.remove(os.path.join(base, f)); purged += 1
+    dropped = 0
+    for rel in AGG_FASTA:
+        p = os.path.join(dst, rel)
+        if not os.path.exists(p):
+            continue
+        keep = kept_records(p, outnames)
+        dropped += sum(1 for _ in fasta(p)) - len(keep)
+        with open(p, 'w') as f:
+            f.writelines(f'>{h}\n{s}' for h, s in keep)
+    print(f'task output: {len(done0)} completed, {len(unfinished)} not; removed {purged} files and '
+          f'{dropped} consensus records of unfinished sequences')
+    # 2. chunk outputs
+    seen = set(done0)
+    fail_all = set()
+    for d in chunk_dirs(root):
+        co = os.path.join(d, out)
+        h2, r2 = summary(co)
+        cdone = {r[0] for r in r2}
+        cnames = inputs(co)
+        cfail = failed(co, cdone)
+        if not cnames or (cdone | cfail) != cnames:
+            sys.exit(f'{d}: {len(cdone)} completed + {len(cfail)} failed of {len(cnames)} sequences, '
+                     f'run it to the end first')
+        if h2 != header:
+            sys.exit(f'{d}: summary.txt header differs from the task output')
+        if cdone & seen:
+            sys.exit(f'{d}: sequences completed twice: {sorted(cdone & seen)[:5]}')
+        seen |= cdone
+        fail_all |= cfail
+        rows += r2
+        for sub in PER_SEQ_DIRS:
+            for base, _, files in os.walk(os.path.join(co, sub)):
+                for f in files:
+                    rel = os.path.relpath(os.path.join(base, f), co)
+                    if rel in NOT_COPIED or owner(f, cnames) in cfail:
+                        continue
+                    os.makedirs(os.path.join(dst, os.path.dirname(rel)), exist_ok=True)
+                    shutil.copy2(os.path.join(base, f), os.path.join(dst, rel))
+        couts = {r[1] for r in r2}
+        for rel in AGG_FASTA:
+            p = os.path.join(co, rel)
+            if os.path.exists(p):
+                with open(os.path.join(dst, rel), 'a') as fo:
+                    fo.writelines(f'>{h}\n{s}' for h, s in kept_records(p, couts))
+        p = os.path.join(co, ERRORS)
+        if os.path.exists(p):
+            with open(p) as fi, open(os.path.join(dst, ERRORS), 'a') as fo:
+                shutil.copyfileobj(fi, fo)
+        with open(os.path.join(co, 'TEtrimmer.log')) as fi, open(os.path.join(dst, 'TEtrimmer.log'), 'a') as fo:
+            fo.write(f'\n##### chunk {os.path.basename(d)} (tt_chunks.py merge) #####\n')
+            shutil.copyfileobj(fi, fo)
+        print(f'{os.path.basename(d)}: {len(cdone)} sequences' + (f', {len(cfail)} failed' if cfail else ''))
+    with open(os.path.join(dst, 'summary.txt'), 'w', newline='') as f:
+        w = csv.writer(f); w.writerow(header); w.writerows(rows)
+    with open(os.path.join(root, 'merged', 'failed_sequences.txt'), 'w') as f:
+        f.writelines(f'{s}\n' for s in sorted(fail_all))
+    # 3. checks
+    assert not (seen & fail_all), 'sequences both completed and failed'
+    assert seen | fail_all == names, \
+        f'{len(names - seen - fail_all)} inputs never completed, {len((seen | fail_all) - names)} unknown'
+    cons = [h.split()[0].split('#')[0] for h, _ in fasta(os.path.join(dst, 'TEtrimmer_consensus.fasta'))]
+    assert len(cons) == len(set(cons)), 'duplicate consensus records after merging'
+    assert set(cons) <= {r[1] for r in rows}, 'consensus records without a summary row'
+    print(f'merged: {len(seen)}/{len(names)} inputs completed, {len(fail_all)} failed (TEtrimmer error in '
+          f'2+ runs; the task retries them), {len(rows)} summary rows, {len(cons)} consensi -> {dst}')
+
+
+if __name__ == '__main__':
+    cmd = sys.argv[1]
+    if cmd == 'prepare':
+        t = int(sys.argv[sys.argv.index('--test') + 1]) if '--test' in sys.argv else 0
+        prepare(sys.argv[2], sys.argv[3], int(sys.argv[4]), t)
+    elif cmd == 'merge':
+        merge(sys.argv[2], sys.argv[3])
+    elif cmd == 'status':
+        status(sys.argv[2])
+    elif cmd == 'check':
+        sys.exit(0 if check(sys.argv[2]) else 1)
+    elif cmd == 'resplit':
+        resplit(sys.argv[2], sys.argv[3], int(sys.argv[4]), '--dry' in sys.argv)
+    else:
+        sys.exit(__doc__)

@@ -1,0 +1,10 @@
+__pycache__/
+.pytest_cache/
+.nextflow/
+.nextflow.log*
+/work/
+/results/
+*.sif
+*.tar.gz
+*.partial
+.env

@@ -1,0 +1,10 @@
+species,display,action_keep,action_keep_relabel,action_remove,action_to_nonte,n_dedup,removed_bp,tier_0,tier_1,tier_2,tier_3,tier_4,tt_keep,tt_reinject,tt_relabel_from_input
+chlamydomonas_reinhardtii,C. reinhardtii,231,,476,,707,1169117,,40,77,114,476,196,32,2
+zea_mays,Z. mays,20907,1,5390,,26298,15955207,,4110,13297,3501,5390,17166,4762,440
+caenorhabditis_briggsae,C. briggsae,378,,32,20,430,37024,20,42,143,193,32,374,21,4
+gallus_gallus,G. gallus,266,3,83,9,361,67010,9,72,39,158,83,205,24,2
+taeniopygia_guttata,T. guttata,351,1,78,22,452,131732,22,60,54,238,78,289,13,2
+mus_musculus,M. musculus,964,8,154,19,1145,162457,19,217,315,440,154,883,50,27
+danio_rerio,D. rerio,2842,8,137,84,3071,214072,84,671,905,1274,137,2743,136,74
+blumeria_hordei,B. hordei,552,3,3,,558,2081,,343,129,83,3,792,23,13
+ectocarpus_sp7,Ectocarpus sp. 7,536,,76,13,625,133307,13,97,154,285,76,527,28,7

@@ -1,0 +1,18 @@
+name: nf-teannotate-starfish
+# Starfish = Starship-element annotation tool (Hartwick et al. / egluckthaler),
+# NOT the bioconda "starfish" spatial-transcriptomics library of the same name.
+# It is distributed on the `egluckthaler` conda channel and as an Apptainer image
+# (oras://ghcr.io/egluckthaler/starfish:latest), used by -profile singularity.
+# Upstream conda install:
+#   conda create -c egluckthaler -n starfish python=3.8 starfish
+channels:
+  - egluckthaler
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - python=3.8
+  # bedtools is a starfish runtime dependency that the egluckthaler package does
+  # not pull in automatically; pinning it here lets the env solve and run.
+  - bedtools=2.30.0
+  - starfish

@@ -1,0 +1,33 @@
+# NeuralTE (CSU-KangHu/NeuralTE) — CNN superfamily TE classifier.
+# The repo's exact pins (numpy 1.19.5 + scikit-learn 1.2.0 + python 3.8) only solve
+# on the anaconda/defaults channels (unreachable from the HPC node), and are mutually
+# unsatisfiable on conda-forge: there is no cp38 numpy 1.19.5, and scikit-learn 1.2
+# wants numpy>=1.20.3 while TF 2.6 needs numpy<1.20. So conda provides ONLY python +
+# RepeatMasker + rmblast (the bioconda binaries NeuralTE shells out to for domain
+# features); the whole Python DL/ML stack is pip-installed (PyPI has numpy 1.19.5
+# cp38 wheels and pip resolves it linearly — the pattern that fixed DeepTE/CREATE).
+# protobuf<3.20 for TF 2.6; h5py 3.1 loads the Keras .h5 model. CPU-only.
+#
+# NOTE: the per-tool/combined build defs ALSO pip-install these explicitly (micromamba
+# does not reliably process a yml `pip:` subsection); this list is the source of truth.
+name: neuralte
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - python=3.8
+  - repeatmasker=4.1.1
+  - rmblast=2.14.0
+  - pip
+  - pip:
+      - numpy==1.19.5
+      - tensorflow==2.6.0
+      - keras==2.6.0
+      - protobuf==3.19.6
+      - h5py==3.1.0
+      - scikit-learn==1.2.0
+      - biopython==1.78
+      - seaborn==0.11.2
+      - matplotlib==3.5.3
+      - openpyxl

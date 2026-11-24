@@ -1,0 +1,15 @@
+{
+ "method": "weighted",
+ "subset": [
+  "teclass2",
+  "neuralte",
+  "terrier"
+ ],
+ "weights": {
+  "teclass2": 1.5,
+  "neuralte": 1.0,
+  "terrier": 2.0
+ },
+ "min_frac": 0.3,
+ "min_agree": 1
+}

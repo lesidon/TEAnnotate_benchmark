@@ -1,0 +1,32 @@
+# Conda environment for CREATE (yangqi-cs/CREATE) — attention-based CNN+RNN TE
+# classifier. Based on the repo's env.yml, with two deliberate changes for
+# solvability and portability:
+#
+#   1. TensorFlow is installed via pip (NOT conda) — keeps the heavy DL framework
+#      out of the conda SAT-solver, the failure that made the old TERL env
+#      unsolvable and aborted the run.
+#   2. cudatoolkit / cudnn are NOT pinned here. The repo pinned cudatoolkit=11.0.221
+#      with cudnn=8.2.0.53, but on conda-forge cudnn 8.2.x is built against CUDA
+#      11.3+, so that exact pair is mutually unsatisfiable and the solver is killed
+#      ("Found conflicts ... cudatoolkit cudnn"). CREATE runs here as process_medium
+#      (no GPU node requested), so it executes on CPU anyway: tensorflow-gpu 2.4.0
+#      imports and runs CPU-only without the CUDA libraries (it just warns
+#      "could not load libcudart"). To run CREATE on GPU later, add a GPU process
+#      label and reinstate cudatoolkit=11.0 + a matching cudnn 8.0.x from the
+#      nvidia/defaults channel (where that pair is consistent).
+name: create_env
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - python=3.6.13
+  - anytree=2.8.0
+  - biopython=1.79
+  - numpy=1.19.5
+  - pandas=1.1.5
+  - scikit-learn=0.24.2
+  - scipy=1.5.3
+  - pip
+  - pip:
+      - tensorflow-gpu==2.4.0

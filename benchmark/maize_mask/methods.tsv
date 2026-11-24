@@ -1,0 +1,7 @@
+reference	/trinity/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/curated/zea_mays/zea_mays.curated.lib.fa
+earlgrey	/trinity/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/libraries/zea_mays/earlgrey/earlgrey_library.fa
+hite	/trinity/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/libraries/zea_mays/hite/hite_library.fa
+teannotate_wo_v13	/trinity/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/libraries/zea_mays/pipeline_wo_tetrimmer_v13/pipeline_library.fa
+teannotate_v13	/trinity/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/libraries/zea_mays/pipeline_v13/pipeline_library.fa
+edta2	/trinity/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/libraries/zea_mays/edta2/edta2_library.fa
+heliano	/trinity/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark/libraries/zea_mays/heliano/heliano_library.fa

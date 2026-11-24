@@ -1,0 +1,15 @@
+{
+ "method": "weighted",
+ "subset": [
+  "create",
+  "neuralte",
+  "terrier"
+ ],
+ "weights": {
+  "create": 1.0,
+  "neuralte": 1.5,
+  "terrier": 2.0
+ },
+ "min_frac": 0.3,
+ "min_agree": 1
+}

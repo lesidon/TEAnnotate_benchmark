@@ -1,0 +1,48 @@
+#!/bin/bash
+# tt_run_chunk.sh <task_dir> <chunk_dir> - TEtrimmer on one chunk (benchmark only, see tt_chunks.py),
+# set up exactly like the pipeline's TETRIMMER task <task_dir>: the same image, the same
+# arguments, the task's TEtrimmer source copy (TE-Aid with RepeatPeps.lib), its genome BLAST
+# database and its Pfam dir. Only the input (the chunk) and the thread number differ.
+# Resumable: a chunk with a started output directory continues with --continue_analysis.
+# No --writable-tmpfs (the copied source makes it unnecessary): on fuse-overlay nodes the
+# overlay is what breaks containers.
+set -eo pipefail
+B=/beegfs/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark
+IMG=$B/work/singularity_heldout/quay.io-biocontainers-tetrimmer-1.7.2--hdfd78af_0.img
+T=$(readlink -f $1); C=$(readlink -f $2)
+read -r LIB G OUT < <(sed -nE 's/.*--input_file +(\S+).*/\1/p; s/.*--genome_file +(\S+).*/\1/p; s/.*--output_dir +(\S+).*/\1/p' $T/.command.sh | paste -sd' ')
+CPUS=${SLURM_CPUS_PER_TASK:-8}
+THREADS=${TT_THREADS:-$(( CPUS * 3 / 2 ))}     # TEtrimmer keeps only ~half its workers on a CPU
+cd $C
+[[ -s $LIB ]] || { echo "no chunk input $C/$LIB"; exit 1; }
+ln -sfn "$(readlink -f $T/$G)" $G
+for f in $T/$G.*; do ln -sfn "$(readlink -f $f)" $(basename $f); done     # BLAST db, .fai, .length
+ln -sfn "$(readlink -f $T/pfam_db)" pfam_db
+[[ -d tetrimmer_src ]] || cp -r $T/tetrimmer_src tetrimmer_src
+# The chunk copy stops after the per-sequence work: TEtrimmer's library-wide final steps
+# (classifying Unknowns by the classified consensi, the merge, proof clustering) must run once,
+# on the merged output, in the pipeline task (--continue_analysis).
+if ! grep -q TT_CHUNK_ONLY tetrimmer_src/TEtrimmer.py; then
+    perl -0pi -e 's/(\n\s*executor\.map\(analyze\.analyze_sequence_helper, analyze_sequence_params\)\r?\n)/$1    if os.environ.get("TT_CHUNK_ONLY"):\r\n        return\r\n/' tetrimmer_src/TEtrimmer.py
+    grep -q TT_CHUNK_ONLY tetrimmer_src/TEtrimmer.py || { echo "chunk-only patch did not apply"; exit 1; }
+    /beegfs/home/leonid.sidorov/envs/teannot_bench/bin/python -c "import ast,sys; ast.parse(open(sys.argv[1]).read())" \
+        tetrimmer_src/TEtrimmer.py || { echo "chunk-only patch broke TEtrimmer.py"; exit 1; }
+fi
+mkdir -p .mplconfig .cache .fontconfig .numba
+CA=
+if [[ -s $OUT/summary.txt && -n $(ls $OUT/Single_fasta_files 2>/dev/null | head -n 1) ]]; then
+    CA=--continue_analysis
+else
+    rm -rf $OUT     # a fresh run must not find a half-made output dir (TEtrimmer would nest a new one)
+fi
+echo "[$(date)] $(basename $C) on $(hostname): $(grep -c '>' $LIB) sequences, $THREADS threads on $CPUS CPUs ${CA:-(fresh)}"
+env - PATH="$PATH" ${TMPDIR:+SINGULARITYENV_TMPDIR="$TMPDIR"} singularity exec --no-home --pid -B $B \
+    -B /trinity/home/leonid.sidorov/tmp/teannotate_benchmark/whole_pipeline_benchmark $IMG /bin/bash -c "
+    cd $C
+    export MPLCONFIGDIR=$C/.mplconfig XDG_CACHE_HOME=$C/.cache FONTCONFIG_PATH=$C/.fontconfig NUMBA_CACHE_DIR=$C/.numba
+    export TT_CHUNK_ONLY=1
+    python $C/tetrimmer_src/TEtrimmer.py --input_file $LIB --genome_file $G --output_dir $OUT \
+        --pfam_dir pfam_db --num_threads $THREADS $CA" > tetrimmer_run.log 2>&1 || true
+n=$(ls $OUT/Single_fasta_files | wc -l); d=$(tail -n +2 $OUT/summary.txt | cut -d, -f1 | sort -u | wc -l)
+echo "[$(date)] $(basename $C): $d/$n sequences completed"
+(( d == n ))
